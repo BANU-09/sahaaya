@@ -1,0 +1,10 @@
+.env*
+.data
+docs/evidence
+coverage
+test-results
+playwright-report
+*.log
+*.tsbuildinfo
+.next
+tests

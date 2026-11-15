@@ -1,0 +1,13 @@
+node_modules
+.next
+.data
+public/ocr
+coverage
+package-lock.json
+test-results
+playwright-report
+*.log
+next-env.d.ts
+docs/MASTER_BRIEF.md
+docs/evidence
+audit-*.json

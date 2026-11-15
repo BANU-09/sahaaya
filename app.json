@@ -1,0 +1,13 @@
+{
+  "name": "sahaaya",
+  "description": "Elderly-first family care coordination",
+  "scripts": { "postdeploy": "npx prisma migrate deploy" },
+  "env": {
+    "APP_URL": { "required": true },
+    "DEMO_MODE": { "value": "false" },
+    "TOKEN_ENCRYPTION_KEY": { "required": true },
+    "GCS_BUCKET": { "required": true }
+  },
+  "addons": ["heroku-postgresql:essential-0"],
+  "buildpacks": [{ "url": "heroku/nodejs" }]
+}

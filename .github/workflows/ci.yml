@@ -1,0 +1,54 @@
+name: Quality checks
+on:
+  push:
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_USER: sahaaya
+          POSTGRES_PASSWORD: local_ci_fixture_only
+          POSTGRES_DB: sahaaya
+        ports: [5432:5432]
+        options: >-
+          --health-cmd "pg_isready -U sahaaya"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      DATABASE_URL: postgresql://sahaaya:local_ci_fixture_only@127.0.0.1:5432/sahaaya
+      APP_URL: http://127.0.0.1:3100
+      DEMO_MODE: 'true'
+      PLAYWRIGHT_BROWSER: chromium
+      GEMINI_PRIVATE_DATA_ALLOWED: 'false'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci
+      - name: Generate ephemeral test encryption key
+        run: node -e "require('node:fs').appendFileSync(process.env.GITHUB_ENV, 'TOKEN_ENCRYPTION_KEY=' + require('node:crypto').randomBytes(32).toString('base64') + '\n')"
+      - run: npx prisma generate
+      - run: npx prisma migrate deploy
+      - run: npm run lint
+      - run: npm test
+      - run: npm run build
+      - run: npm run typecheck
+      - run: npx playwright install --with-deps chromium
+      - name: Browser and API journeys
+        run: |
+          npm run start -- --hostname 127.0.0.1 --port 3100 > /tmp/sahaaya.log 2>&1 &
+          for attempt in $(seq 1 30); do curl -fsS http://127.0.0.1:3100/api/health && break; sleep 1; done
+          npm run test:e2e
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: browser-test-report
+          path: playwright-report/
+          retention-days: 7

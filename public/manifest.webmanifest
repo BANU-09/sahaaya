@@ -1,0 +1,9 @@
+{
+  "name": "Sahaaya — Care that connects",
+  "short_name": "Sahaaya",
+  "start_url": "/app/home",
+  "display": "standalone",
+  "background_color": "#FFF8ED",
+  "theme_color": "#176B68",
+  "icons": [{ "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }]
+}
