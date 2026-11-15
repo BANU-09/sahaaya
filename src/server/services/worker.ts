@@ -170,7 +170,13 @@ export async function dispatchNotifications() {
           },
         })
       : null;
-    if (job.patientId && !member) {
+    const doctorRevoked =
+      member?.role === 'DOCTOR' &&
+      !(await db.doctor.findFirst({
+        where: { userId: job.userId, verifiedAt: { not: null } },
+        select: { id: true },
+      }));
+    if (job.patientId && (!member || doctorRevoked)) {
       await db.notification.update({
         where: { id: job.id },
         data: { status: 'SKIPPED', errorCode: 'ACCESS_REVOKED' },

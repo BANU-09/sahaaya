@@ -1,6 +1,7 @@
 'use client';
 import { useLocale } from './locale-provider';
 import { formatDate } from '@/lib/i18n';
+import { DOSE_STATES } from '@/lib/analytics';
 export type TrendDetails = {
   daily: {
     date: string;
@@ -58,7 +59,7 @@ export function HealthTrends({ stats, timezone }: { stats: TrendDetails; timezon
               <thead>
                 <tr>
                   <th>{t('dateTime')}</th>
-                  {['TAKEN', 'NOT_TAKEN', 'PENDING', 'SNOOZED', 'NEEDS_HELP'].map((k) => (
+                  {DOSE_STATES.map((k) => (
                     <th key={k}>{t(k)}</th>
                   ))}
                 </tr>
@@ -67,7 +68,7 @@ export function HealthTrends({ stats, timezone }: { stats: TrendDetails; timezon
                 {stats.daily.map((day) => (
                   <tr key={day.date}>
                     <td>{day.date}</td>
-                    {['TAKEN', 'NOT_TAKEN', 'PENDING', 'SNOOZED', 'NEEDS_HELP'].map((k) => (
+                    {DOSE_STATES.map((k) => (
                       <td key={k}>{day.states[k]}</td>
                     ))}
                   </tr>

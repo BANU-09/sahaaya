@@ -1,0 +1,14 @@
+{
+  "origin": "https://sahaaya-mauve.vercel.app",
+  "checkedAt": "2026-11-15T10:37:11.438Z",
+  "checks": [
+    "Public database and scheduled-worker health",
+    "Unauthenticated account access denied",
+    "Patient registration, secure cookie and persistent profile",
+    "Private upload/download preserves bytes; anonymous download denied; no-store response",
+    "Reviewed draft persists once; duplicate commit rejected",
+    "Reauthenticated export includes saved data and excludes credentials",
+    "Synthetic account deleted; session invalidated"
+  ],
+  "passed": true
+}

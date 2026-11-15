@@ -162,7 +162,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 >
                   <Icon size={20} strokeWidth={active === key ? 2 : 1.7} />
                   <span>{t(key)}</span>
-                  {key === 'assistant' && <span className="ai-tag">AI</span>}
                   {key === 'notifications' && Boolean(state.data?.alerts.length) && (
                     <span className="nav-count">{state.data?.alerts.length}</span>
                   )}

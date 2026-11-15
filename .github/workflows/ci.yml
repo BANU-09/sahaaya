@@ -37,7 +37,8 @@ jobs:
       - run: npx prisma generate
       - run: npx prisma migrate deploy
       - run: npm run lint
-      - run: npm test
+      - run: npm run format:check
+      - run: npm run test:coverage
       - run: npm run build
       - run: npm run typecheck
       - run: npx playwright install --with-deps chromium
@@ -50,5 +51,7 @@ jobs:
         if: always()
         with:
           name: browser-test-report
-          path: playwright-report/
+          path: |
+            playwright-report/
+            coverage/
           retention-days: 7

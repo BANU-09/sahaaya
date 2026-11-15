@@ -152,6 +152,9 @@ export default function Landing() {
       <footer className="landing-footer">
         <Logo />
         <p>{t('tagline')}</p>
+        <a href="https://github.com/BANU-09/sahaaya" target="_blank" rel="noreferrer">
+          {t('sourceCode')} · BanuSreya
+        </a>
         <Link href="/privacy">{t('privacy')}</Link>
       </footer>
     </div>

@@ -31,10 +31,34 @@ export function errorResponse(error: unknown) {
   console.error('request_failed', error instanceof Error ? error.name : 'UnknownError');
   return Response.json({ error: 'serverError' }, { status: 500 });
 }
+export async function readText(request: Request, maximumBytes: number) {
+  if (Number(request.headers.get('content-length')) > maximumBytes)
+    throw new ApiError(413, 'tooLarge');
+  if (!request.body) return '';
+  const reader = request.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let bytes = 0;
+  try {
+    while (true) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      bytes += value.byteLength;
+      if (bytes > maximumBytes) {
+        await reader.cancel();
+        throw new ApiError(413, 'tooLarge');
+      }
+      chunks.push(value);
+    }
+  } finally {
+    reader.releaseLock();
+  }
+  return Buffer.concat(chunks).toString('utf8');
+}
 export async function readJson(request: Request): Promise<unknown> {
-  if (!request.headers.get('content-type')?.includes('application/json'))
+  if (
+    request.headers.get('content-type')?.split(';')[0].trim().toLowerCase() !== 'application/json'
+  )
     throw new ApiError(415, 'invalidInput');
-  const raw = await request.text();
-  if (Buffer.byteLength(raw) > 32_768) throw new ApiError(413, 'tooLarge');
+  const raw = await readText(request, 32_768);
   return JSON.parse(raw);
 }

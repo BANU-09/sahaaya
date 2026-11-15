@@ -15,5 +15,7 @@ public/ocr/
 docs/evidence/*
 !docs/evidence/public-home.png
 !docs/evidence/public-dashboard.png
+!docs/evidence/production-smoke.json
+!docs/evidence/release-validation.json
 
 .vercel

@@ -8,11 +8,13 @@ export const maxDuration = 60;
 export async function POST(request: Request) {
   const expected = process.env.WORKER_SECRET;
   const supplied = request.headers.get('authorization')?.replace(/^Bearer /, '') || '';
+  const suppliedBytes = Buffer.from(supplied),
+    expectedBytes = Buffer.from(expected || '');
   if (
     !expected ||
     expected.length < 32 ||
-    supplied.length !== expected.length ||
-    !timingSafeEqual(Buffer.from(supplied), Buffer.from(expected))
+    suppliedBytes.length !== expectedBytes.length ||
+    !timingSafeEqual(suppliedBytes, expectedBytes)
   )
     return new Response(null, { status: 401 });
   try {

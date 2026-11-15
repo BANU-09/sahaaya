@@ -10,6 +10,8 @@ An elderly-first care coordination application with a real PostgreSQL backend, p
 
 [![Quality checks](https://github.com/BANU-09/sahaaya/actions/workflows/ci.yml/badge.svg)](https://github.com/BANU-09/sahaaya/actions/workflows/ci.yml)
 
+![SAHAAYA patient dashboard with fictional demonstration records](docs/evidence/public-dashboard.png)
+
 ## The problem and our approach
 
 An older adult's medicines, paper records and appointments often sit in separate places. Family members cannot tell whether a reminder was seen, whether a dose was confirmed, or who is following up. SAHAAYA connects these steps with patient-controlled access: **read → review → schedule → confirm → follow up together**. An unconfirmed dose stays unconfirmed; the software never invents adherence.
@@ -19,7 +21,7 @@ The public deployment uses free Vercel hosting, Neon PostgreSQL and a Cloudflare
 ## What works
 
 - Password accounts, authenticator MFA/recovery codes, fresh-authenticated data export/account deletion, session-bound PIN, device session revocation, and consented family/caregiver/verified-doctor invitations.
-- Prescription image/camera upload → Vision/Gemini adapter → uncertain-field review → editable medicine draft → approval → scheduled doses. An explicitly fictional sample demonstrates the workflow without API credentials.
+- Image/PDF upload → private on-device transcription → field-by-field review. Medicine entry remains an explicit reviewed draft → approval → scheduled doses. A labelled fictional prescription sample demonstrates the complete medicine workflow; optional cloud adapters are inactive.
 - Daily/weekday/alternate-day/finite-course/as-needed medicines, confirmation, snooze, help requests, witnessed caregiver recording, refills and archive history.
 - An independent Care Loop creates due/follow-up/escalated alerts and tracks human acknowledgement/resolution. Unconfirmed does not mean missed.
 - Appointments, family synchronization, tasks, journal, vitals, adherence trends, private documents, patient-approved printable visit summaries and expiring/revocable Emergency Passport QR links.
@@ -29,19 +31,20 @@ The public deployment uses free Vercel hosting, Neon PostgreSQL and a Cloudflare
 - Versioned document metadata, recipient-acknowledged caregiver handovers, custom date-range adherence heatmaps/vital trends, reviewed companion drafts, and operator-gated doctor applications.
 - Standard Web Push with generated VAPID credentials, delivery receipts and expired-subscription cleanup; signed Resend webhook adapter with deduplication.
 
-See [QUALITY_REPORT.md](QUALITY_REPORT.md) for measured results and limits: **80 unit tests and 32 browser/API journeys passed locally**, with zero serious/critical axe violations on the tested screens. These are measured checks, not a hackathon score. Cloud AI, email/SMS, Google OAuth/Calendar/Maps and live clinic booking are not active in the free deployment. Browser notification delivery requires permission and a supported browser. This project does not claim clinical or compliance certification.
+See [QUALITY_REPORT.md](QUALITY_REPORT.md) for measured results and limits: **99 unit tests and 34 browser/API journeys passed locally**, with zero serious/critical axe violations on the tested screens. These are measured checks, not a hackathon score. Cloud AI, email/SMS, Google OAuth/Calendar/Maps and live clinic booking are not active in the free deployment. Browser notification delivery requires permission and a supported browser. This project does not claim clinical or compliance certification.
 
 ## Start locally
 
 Requires Node.js 22.12+ (tested with 26.1.0) and npm. The included development helper runs native PostgreSQL in `.data/postgres`, bound to loopback. A managed/existing PostgreSQL DATABASE_URL can be used instead; skip the local DB command in that case.
 
 ```powershell
-cd C:\Users\duvvu\Claudecode\sahaaya
+git clone https://github.com/BANU-09/sahaaya.git
+cd sahaaya
 npm ci
 Copy-Item .env.example .env
 ```
 
-Choose a unique password in the example DATABASE_URL before the first local initialization. Keep its host/port/database as `127.0.0.1:54329/sahaaya`. Set APP_URL to `http://127.0.0.1:3100` and DEMO_MODE to `true`. Generate a persistent 32-byte base64 key with `node -e "console.log(require('node:crypto').randomBytes(32).toString('base64'))"` and store it privately as TOKEN_ENCRYPTION_KEY. This delivered workspace already has a private local `.env`; **do not overwrite it when resuming**.
+Choose a unique password in the example DATABASE_URL before the first local initialization. Keep its host/port/database as `127.0.0.1:54329/sahaaya`. Set APP_URL to `http://127.0.0.1:3100` and DEMO_MODE to `true`. Generate a persistent 32-byte base64 key with `node -e "console.log(require('node:crypto').randomBytes(32).toString('base64'))"` and store it privately as TOKEN_ENCRYPTION_KEY. If a private `.env` already exists, preserve it when resuming.
 
 Run `npm run db:local` and keep that terminal open. In another terminal:
 

@@ -19,7 +19,9 @@ export function LocalScanPanel() {
     [documentId, setDocumentId] = useState('');
   const [preview, setPreview] = useState('');
   useEffect(() => {
-    return () => { if (preview) URL.revokeObjectURL(preview); };
+    return () => {
+      if (preview) URL.revokeObjectURL(preview);
+    };
   }, [preview]);
   if (!can('records.upload') || !can('records.view')) return null;
   async function scan() {

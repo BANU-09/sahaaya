@@ -22,7 +22,11 @@ export function AuthForm({
   const { t, locale } = useLocale(),
     router = useRouter(),
     action = useAction();
-  const { data: config } = useResource<Config>('config');
+  const {
+    data: config,
+    error: configError,
+    loading: configLoading,
+  } = useResource<Config>('config');
   const [role, setRole] = useState('PATIENT');
   async function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -117,7 +121,11 @@ export function AuthForm({
           )}
           {mode === 'demo' ? (
             <div className="demo-roles">
-              {config?.demo ? (
+              {configLoading ? (
+                <p role="status">{t('loading')}</p>
+              ) : configError ? (
+                <ErrorNotice code={configError} />
+              ) : config?.demo ? (
                 [
                   { role: 'PATIENT', name: 'Lakshmi Devi', icon: Heart },
                   { role: 'FAMILY', name: 'Arjun Rao', icon: UsersRound },

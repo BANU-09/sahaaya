@@ -21,7 +21,15 @@ export async function api<T>(path: string, method = 'GET', body?: unknown): Prom
           : { 'Content-Type': 'application/json' },
     body: body instanceof FormData ? body : body === undefined ? undefined : JSON.stringify(body),
   });
-  const data: unknown = await response.json();
+  let data: unknown;
+  try {
+    data = await response.json();
+  } catch {
+    throw new ClientError(
+      response.status >= 500 ? 'serviceUnavailable' : 'serverError',
+      response.status,
+    );
+  }
   if (!response.ok)
     throw new ClientError(
       typeof data === 'object' && data !== null && 'error' in data
@@ -32,7 +40,15 @@ export async function api<T>(path: string, method = 'GET', body?: unknown): Prom
   return data as T;
 }
 export function useResource<T>(path: string | null, version = 0) {
-  const [state, setState] = useState<{ data: T | null; error: string | null }>({
+  const key = `${path}:${version}`;
+  const [state, setState] = useState<{
+    key: string | null;
+    path: string | null;
+    data: T | null;
+    error: string | null;
+  }>({
+    key: null,
+    path: null,
     data: null,
     error: null,
   });
@@ -41,11 +57,13 @@ export function useResource<T>(path: string | null, version = 0) {
     let active = true;
     api<T>(path)
       .then((data) => {
-        if (active) setState({ data, error: null });
+        if (active) setState({ key, path, data, error: null });
       })
       .catch((error: unknown) => {
         if (active)
           setState({
+            key,
+            path,
             data: null,
             error: error instanceof ClientError ? error.code : 'serverError',
           });
@@ -53,8 +71,14 @@ export function useResource<T>(path: string | null, version = 0) {
     return () => {
       active = false;
     };
-  }, [path, version]);
-  return state;
+  }, [path, key]);
+  return state.path === path && path
+    ? {
+        data: state.data,
+        error: state.key === key ? state.error : null,
+        loading: state.key !== key,
+      }
+    : { data: null, error: null, loading: Boolean(path) };
 }
 export type Serialized<T> = T extends Date
   ? string

@@ -151,9 +151,20 @@ export async function dispatch(request: Request, path: string[]): Promise<unknow
       where: { userId: user.id, revokedAt: null, circle: { patient: { demo: user.demo } } },
       select: { role: true, circle: { select: { patient: { select: { id: true, name: true } } } } },
     });
+    const doctorVerified =
+      user.demo ||
+      !memberships.some((m) => m.role === 'DOCTOR') ||
+      Boolean(
+        await db.doctor.findFirst({
+          where: { userId: user.id, verifiedAt: { not: null } },
+          select: { id: true },
+        }),
+      );
     return {
       user: publicUser(user),
-      patients: memberships.map((m) => ({ ...m.circle.patient, role: m.role })),
+      patients: memberships
+        .filter((m) => m.role !== 'DOCTOR' || doctorVerified)
+        .map((m) => ({ ...m.circle.patient, role: m.role })),
     };
   }
   if (path[0] === 'settings') {

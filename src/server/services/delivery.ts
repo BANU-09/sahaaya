@@ -1,14 +1,11 @@
 import { Webhook } from 'svix';
 import { z } from 'zod';
 import { db } from '../db';
-import { ApiError } from '../errors';
+import { ApiError, readText } from '../errors';
 
 export async function emailWebhook(request: Request) {
   if (!process.env.RESEND_WEBHOOK_SECRET) throw new ApiError(503, 'notConfigured');
-  if (Number(request.headers.get('content-length') || 0) > 65536)
-    throw new ApiError(413, 'tooLarge');
-  const raw = await request.text();
-  if (raw.length > 65536) throw new ApiError(413, 'tooLarge');
+  const raw = await readText(request, 65536);
   const eventId = request.headers.get('svix-id') || '';
   let verified: unknown;
   try {

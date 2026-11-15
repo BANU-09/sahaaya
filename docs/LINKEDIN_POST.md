@@ -18,7 +18,7 @@ Working features include:
 • Patient-controlled permissions, authenticator MFA, private documents, data export and account deletion.
 • Adherence heatmaps, recorded vital trends and a companion grounded in authorized saved records.
 
-This is a full-stack application using Next.js, TypeScript, PostgreSQL and a separate scheduled worker. Local validation passed 80 unit tests and 32 browser/API journeys, including mobile, accessibility, security and cross-role workflows.
+This is a full-stack application using Next.js, TypeScript, PostgreSQL and a separate scheduled worker. Local validation passed 99 unit tests and 34 browser/API journeys, including mobile, accessibility, security and cross-role workflows.
 
 Try the fictional demo: https://sahaaya-mauve.vercel.app/demo
 Explore the code: https://github.com/BANU-09/sahaaya

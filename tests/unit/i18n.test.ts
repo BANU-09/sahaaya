@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { LOCALES, dictionaries, getText, normalizeLocale, formatDate } from '@/lib/i18n';
+import { privacyCopy } from '@/lib/privacy-copy';
 describe('six-language interface', () => {
   it.each(Object.keys(LOCALES))('has a value for every essential key in %s', (locale) => {
     const dictionary = dictionaries[normalizeLocale(locale)];
@@ -8,6 +9,14 @@ describe('six-language interface', () => {
   });
   it('falls back to English for unsupported locales', () =>
     expect(normalizeLocale('fr')).toBe('en'));
+  it.each(Object.keys(LOCALES))(
+    'provides the privacy and account-rights explanation in %s',
+    (locale) => {
+      const copy = privacyCopy[normalizeLocale(locale)];
+      expect(Object.keys(copy)).toEqual(Object.keys(privacyCopy.en));
+      for (const value of Object.values(copy)) expect(value.length).toBeGreaterThan(10);
+    },
+  );
   it('translates server errors and audit events', () => {
     expect(getText('te', 'forbidden')).not.toBe(getText('en', 'forbidden'));
     expect(getText('hi', 'doseTAKEN')).toBe(getText('hi', 'TAKEN'));

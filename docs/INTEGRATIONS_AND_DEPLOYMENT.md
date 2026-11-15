@@ -1,44 +1,44 @@
 # Integrations and deployment
 
-Configuration flags indicate environment settings, not verified connectivity. Gemini structured output and the authenticated companion were tested live with an existing environment credential and fictional data; the other Google/email/hosting integrations remain unconfigured. Demo notifications never leave the app. See the quality report for evidence.
+Author: **BanuSreya**. Public app: https://sahaaya-mauve.vercel.app.
 
-## Provider setup and acceptance
+## Active free deployment
 
-Use a dedicated project, restricted server keys, private bucket and least-privilege service identity. Prefer workload identity/ADC. Otherwise securely mount a service-account file and set GOOGLE_APPLICATION_CREDENTIALS; do not commit it or put secrets in NEXT_PUBLIC variables.
+| Component         | Configuration                                                                                               | Verification                                                                                |
+| ----------------- | ----------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------- |
+| Vercel            | Next.js; build applies Prisma migrations, prepares OCR assets and builds the app; Singapore function region | Public HTTPS and deployed demo checked                                                      |
+| Neon              | PostgreSQL 18, Singapore, 0.25 CU, five-minute scale-to-zero, pooled runtime URL and direct migration URL   | Migrations, persistence, private-file round-trip and deletion checked                       |
+| Cloudflare        | `deploy/cron-worker.mjs`; `*/10 * * * *`; APP_URL plus a reminder-only secret                               | Saved schedule and a subsequent healthy scheduled heartbeat observed                        |
+| Private documents | STORAGE_PROVIDER=postgres; AES-256-GCM with a persistent server key; 3 MB/file, 200 MB raw-file quota       | Authenticated round-trip, identical bytes, no-store headers, anonymous denial               |
+| On-device OCR     | Tesseract.js + PDF.js workers generated during build; language files downloaded by browser                  | Synthetic image recognized and field-by-field review saved                                  |
+| Web Push          | VAPID_PUBLIC_KEY/VAPID_PRIVATE_KEY; browser opt-in; validated vendor endpoints                              | Configuration and contracts checked; real device delivery still requires acceptance testing |
 
-| Service     | Environment                                                                                                       | Acceptance check                                                                                                                      |
-| ----------- | ----------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
-| Gemini      | GEMINI_API_KEY, GEMINI_MODEL                                                                                      | Confirm account model access; test structured extraction, uncertain fields and safe intent classification with fictional input        |
-| Vision      | ADC, GOOGLE_VISION_ENABLED=true                                                                                   | Enable API; JPEG/PNG DOCUMENT_TEXT_DETECTION, visible original and confidence. PDF storage exists, PDF OCR does not                   |
-| OAuth       | GOOGLE_CLIENT_ID/SECRET, GOOGLE_REDIRECT_URI                                                                      | Register exact HTTPS `/api/auth/google/callback`; test state rejection, declined consent, new profile and existing-account connection |
-| Calendar    | OAuth, TOKEN_ENCRYPTION_KEY                                                                                       | Enable Calendar API; explicit calendar.events.owned consent; test create/reschedule/cancel, duplicate retry and revoked token         |
-| Maps/Places | GOOGLE_MAPS_API_KEY                                                                                               | Enable required Places API, restrict key; test geolocation denial, nearby results and provider failure                                |
-| Storage     | ADC, GCS_BUCKET                                                                                                   | Private object upload; deny unsigned/cross-patient download; test grant revocation                                                    |
-| Firebase    | ADC, FIREBASE_PROJECT_ID, FIREBASE_WEB_API_KEY, FIREBASE_APP_ID, FIREBASE_MESSAGING_SENDER_ID, FIREBASE_VAPID_KEY | Enable FCM, configure web app/VAPID; explicitly opt in and test actual HTTPS browser/device background delivery                       |
-| Resend      | RESEND_API_KEY, verified EMAIL_FROM                                                                               | Test recovery and reminders in a real inbox; provider ACCEPTED is not a delivery receipt                                              |
+The ten-minute interval lets the database suspend between checks. Free quotas may pause services; no paid upgrade or billing commitment is configured. This is a hackathon demonstration rather than a guaranteed clinical monitoring service.
 
-References: [Vision OCR](https://docs.cloud.google.com/vision/docs/fulltext-annotations), [Gemini structured output](https://ai.google.dev/gemini-api/docs/structured-output?lang=rest), [Firebase web messaging](https://firebase.google.com/docs/cloud-messaging/web/get-started).
+## Secrets and release procedure
 
-Camera, microphone, speech synthesis/recognition and location require actual browser support/permission. Text alternatives remain available. Speech recognition may use the browser vendor's service, disclosed in the UI. Test the actual presentation device and language voices.
+1. Link the intended Vercel project. Keep production secrets in the hosting secret manager. This workspace's private copy is `.data/production.env`; it is excluded from Git and deployment uploads. Do not put it in `.env.production.local`, which Next would auto-load during local builds.
+2. Set DATABASE_URL (pooled), DIRECT_URL (migrations), APP_URL, TOKEN_ENCRYPTION_KEY, WORKER_SECRET, STORAGE_PROVIDER=postgres, DB_POOL_SIZE=3, DEMO_MODE=true, REMINDER_CHECK_MINUTES=10 and WORKER_HEALTH_TIMEOUT_MS=900000. Keep encryption keys stable.
+3. Generate Web Push VAPID keys once. Expose only the public key to the browser. Never use NEXT_PUBLIC for server credentials.
+4. Run the checks in QUALITY_REPORT.md, deploy the intended commit and verify `/api/health`. The worker heartbeat must be healthy as well as the database connected.
+5. Configure Cloudflare with only APP_URL and WORKER_SECRET. It calls POST `/api/internal/worker`; it does not receive database or encryption credentials. `deploy/wrangler.jsonc` describes the schedule.
+6. Run the synthetic production smoke check, open the demo in a real browser and confirm the next scheduled heartbeat. Provider acceptance does not establish device or inbox delivery.
 
-## Local production check
+GitHub CI uses a disposable PostgreSQL container and no production secrets. A source push alone does not imply a new Vercel deployment; verify the production release separately.
 
-With DB running: `npm run build`, `npm run start -- --port 3100`, and separately `npm run worker`. `/api/health` must report connected DB and a fresh healthy worker heartbeat. Production uploads require GCS unless explicitly running a fictional demo.
+## Optional adapters — inactive
 
-Early PGlite testing exposed an intermittent PostgreSQL-protocol error with concurrent web/worker connections. The delivered local setup uses native PostgreSQL with a pool of five per process. Original PGlite data and settings were preserved privately; it is no longer the active database. Validate deployment pool sizing against actual connection limits. Local performance can be reproduced with `npx tsx --env-file=.env scripts/measure.ts`; the script refuses non-local/non-demo targets.
+| Service               | Required configuration                                                               | Acceptance still required                                                                               |
+| --------------------- | ------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------- |
+| Google OAuth/Calendar | Client ID/secret, exact HTTPS callback, consent screen; encrypted refresh tokens     | Sign-in/linking, declined consent, calendar creation/update/cancel, revoked token                       |
+| Gemini/Vision         | Authorized model/service account and suitable data-processing terms                  | Do not send sensitive data using an unsuitable free tier; consent, input provenance and clinical review |
+| Maps/Places           | Restricted server key and eligible project                                           | Location denial, real search and quota/error behavior                                                   |
+| GCS                   | Private bucket and workload identity/ADC                                             | Private upload/download, revocation, deletion and retention                                             |
+| Firebase              | Web app/VAPID + service identity                                                     | Real supported-device delivery                                                                          |
+| Resend                | API key, an authorized verified sending domain and EMAIL_FROM; RESEND_WEBHOOK_SECRET | Email ownership, recovery/reminder inbox delivery, signature verification and retry callbacks           |
 
-## Heroku
+Email stays disabled until a different authorized sending domain is selected. SMS and automatic clinic booking are not implemented. Browser speech/camera/location require support and permission; text/manual alternatives remain available.
 
-Procfile defines web, worker and release; app.json includes PostgreSQL. Prisma CLI and tsx are production dependencies. The release command applies versioned migrations. See Heroku [Procfile](https://devcenter.heroku.com/articles/procfile) and [release phase](https://devcenter.heroku.com/articles/release-phase).
+The old Procfile/app.json are optional adapters for separately provisioned conventional web/worker hosting. Heroku was not used and is not required for the current free setup.
 
-1. Select/create an authorized Heroku app and managed PostgreSQL resource. Review current account charges. No paid resource was created in this delivery.
-2. Deploy **sahaaya as the repository root**, excluding the surrounding workspace, .env, .data, credentials and build/test artifacts. Use the committed lockfile.
-3. Configure managed DATABASE_URL, exact HTTPS APP_URL, persistent random 32-byte base64 TOKEN_ENCRYPTION_KEY, private GCS/ADC and required provider settings. DEMO_MODE=false for real accounts. Workstation credentials do not exist on dynos.
-4. Build with a supported Node satisfying package.json; release runs prisma migrate deploy. Never run prisma dev on Heroku.
-5. Scale both web=1 and worker=1. DB_POOL_SIZE defaults to five per process; budget connections for all processes/dynos. Scheduler lock and delivery claims prevent duplicate ownership.
-6. Verify HTTPS cookies, heartbeat, auth/access isolation, private files, review→approval→confirmation and configured providers using non-sensitive fixtures.
-7. Monitor failed/aged deliveries, stale worker, errors and DB saturation. Enable backups and perform a restore drill. Logs must not contain health payloads.
-
-Heroku filesystem is ephemeral: store persistent medical files in private GCS. Keep the encryption key stable across releases. Review database rollback/recovery separately from app rollback. Final local evidence uses native PostgreSQL, not a managed Heroku database.
-
-Before real patient use, complete live provider acceptance, native-language clinical review, operator privacy/grievance contacts, deletion/export/retention workflows, identity verification, malware scanning, independent security/accessibility review and native-PostgreSQL load/restore testing. Public deployment needs hosting/provider ownership; the local demo works without it.
+Before real patient use, complete privacy ownership, native-language/clinical review, independent security and accessibility assessment, malware scanning, retention policy and a backup/restore drill. See REQUIREMENTS.md for precise scope.

@@ -5,6 +5,7 @@ import { authorize } from '../auth';
 import { db } from '../db';
 import { ApiError } from '../errors';
 import { adherence } from '@/lib/schedule';
+import { dailyAdherence } from '@/lib/analytics';
 export async function careAnalytics(user: User, patientId: string, url: URL) {
   const member = await authorize(user, patientId, 'medications.view');
   const zone = member.circle.patient.timezone,
@@ -39,7 +40,7 @@ export async function careAnalytics(user: User, patientId: string, url: URL) {
       ? db.vital.findMany({
           where: { patientId, recordedAt: { gte: start.toJSDate(), lte: end.toJSDate() } },
           orderBy: { recordedAt: 'asc' },
-          take: 2000,
+          take: 2001,
         })
       : [],
     db.refill.findMany({
@@ -49,27 +50,12 @@ export async function careAnalytics(user: User, patientId: string, url: URL) {
       },
       select: { id: true, quantity: true, createdAt: true, medication: { select: { name: true } } },
       orderBy: { createdAt: 'asc' },
-      take: 1000,
+      take: 1001,
     }),
   ]);
-  if (events.length > 10000) throw new ApiError(413, 'rangeTooLarge');
-  const daily = Array.from({ length: days }, (_, i) => {
-    const day = start.plus({ days: i }),
-      next = day.plus({ days: 1 });
-    const records = events.filter(
-      (e) => e.scheduledAt >= day.toJSDate() && e.scheduledAt < next.toJSDate(),
-    );
-    return {
-      date: day.toISODate(),
-      ...adherence(records),
-      states: Object.fromEntries(
-        ['TAKEN', 'NOT_TAKEN', 'PENDING', 'SNOOZED', 'NEEDS_HELP'].map((state) => [
-          state,
-          records.filter((r) => r.status === state).length,
-        ]),
-      ),
-    };
-  });
+  if (events.length > 10000 || vitals.length > 2000 || refills.length > 1000)
+    throw new ApiError(413, 'rangeTooLarge');
+  const daily = dailyAdherence(events, start, days);
   const bucket = Math.max(1, Math.ceil(days / 10));
   const trend = Array.from({ length: Math.ceil(days / bucket) }, (_, i) => {
     const from = start.plus({ days: i * bucket }),

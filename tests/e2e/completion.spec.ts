@@ -132,6 +132,20 @@ test.describe.serial('completion features on isolated local PostgreSQL fixtures'
     const result = await stranger.post('/api/doctor-profile', { data: application });
     expect(result.status()).toBe(200);
     expect((await result.json()).verifiedAt).toBeNull();
+    const strangerUser = (await (await stranger.get('/api/me')).json()).user;
+    const circle = await db.careCircle.findUniqueOrThrow({ where: { patientId } });
+    await db.membership.create({
+      data: {
+        circleId: circle.id,
+        userId: strangerUser.id,
+        role: 'DOCTOR',
+        relationship: 'Synthetic revoked-doctor check',
+        consentedAt: new Date(),
+        permissions: { create: [{ key: 'profile.view' }] },
+      },
+    });
+    const visible = (await (await stranger.get('/api/me')).json()).patients;
+    expect(visible.some((p: { id: string }) => p.id === patientId)).toBe(false);
     expect((await stranger.get('/api/operator/doctors')).status()).toBe(403);
     expect((await stranger.get(`/api/patients/${patientId}/dashboard`)).status()).toBe(403);
   });

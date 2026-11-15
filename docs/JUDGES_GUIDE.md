@@ -19,15 +19,15 @@ Source: https://github.com/BANU-09/sahaaya
 
 ## Round 2 evidence map
 
-| Criterion | Weight | What to assess |
-|---|---:|---|
-| Implementation | 20% | Next.js/TypeScript, Prisma migrations, PostgreSQL transactions, independent scheduler, private storage and on-device OCR; see `src/server`, `prisma`, `deploy` |
-| Problem–solution alignment | 20% | Elderly-first multilingual interface; patient-controlled family access; reviewed prescriptions; confirmation → follow-up → acknowledgement |
-| Functionality | 20% | 80 unit tests and 32 local browser/API journeys; real persistence, replay protection, RBAC, MFA, handover, document history and custom trends |
-| UI/UX | 15% | Six languages, responsive layout, Easy Mode, labelled controls, keyboard dialogs, reduced motion; tested axe journeys and 390 px layout |
-| Deployment/completeness | 10% | Public HTTPS app with database, private uploads and scheduled worker; provider limits documented |
-| GitHub repository | 5% | Source, README, architecture, migrations, environment template, CI, tests and license |
-| LinkedIn explanation/tag | 10% | Ready-to-post copy in `LINKEDIN_POST.md`; publish from the entrant's account and select the actual MnM organization mention |
+| Criterion                  | Weight | What to assess                                                                                                                                                 |
+| -------------------------- | -----: | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Implementation             |    20% | Next.js/TypeScript, Prisma migrations, PostgreSQL transactions, independent scheduler, private storage and on-device OCR; see `src/server`, `prisma`, `deploy` |
+| Problem–solution alignment |    20% | Elderly-first multilingual interface; patient-controlled family access; reviewed prescriptions; confirmation → follow-up → acknowledgement                     |
+| Functionality              |    20% | 99 unit tests and 34 local browser/API journeys; real persistence, replay protection, RBAC, MFA, handover, document history and custom trends                  |
+| UI/UX                      |    15% | Six languages, responsive layout, Easy Mode, labelled controls, keyboard dialogs, reduced motion; tested axe journeys and 390 px layout                        |
+| Deployment/completeness    |    10% | Public HTTPS app with database, private uploads and scheduled worker; provider limits documented                                                               |
+| GitHub repository          |     5% | Source, README, architecture, migrations, environment template, CI, tests and license                                                                          |
+| LinkedIn explanation/tag   |    10% | Ready-to-post copy in `LINKEDIN_POST.md`; publish from the entrant's account and select the actual MnM organization mention                                    |
 
 These weights describe the supplied rubric. They do not predict a platform score, rank, shortlist or prize.
 

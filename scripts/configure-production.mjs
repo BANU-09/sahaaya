@@ -36,8 +36,7 @@ if (process.argv.includes('--upload')) {
   await mkdir('.data', { recursive: true });
   const cli = join(process.env.APPDATA, 'npm/node_modules/vercel/dist/index.js');
   const project = JSON.parse(await readFile('.vercel/project.json', 'utf8'));
-  if (!project.projectId || !project.orgId)
-    throw new Error('Unexpected deployment target');
+  if (!project.projectId || !project.orgId) throw new Error('Unexpected deployment target');
   for (const [key, value] of Object.entries(env)) {
     const bodyPath = '.data/vercel-env-input.json';
     await writeFile(

@@ -1,7 +1,8 @@
 'use client';
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { api, type PublicUser } from '@/lib/client';
+import { api, useResource, type Config, type PublicUser } from '@/lib/client';
+import Image from 'next/image';
 import { Button, Field, ErrorNotice, Modal, useAction } from './ui';
 import { useLocale } from './locale-provider';
 
@@ -10,8 +11,11 @@ export function SecuritySettings({ user, refresh }: { user: PublicUser; refresh:
     action = useAction(),
     router = useRouter();
   const [mode, setMode] = useState<string | null>(null),
-    [enrollment, setEnrollment] = useState<{ secret: string; uri: string } | null>(null),
+    [enrollment, setEnrollment] = useState<{ secret: string; uri: string; qr: string } | null>(
+      null,
+    ),
     [codes, setCodes] = useState<string[] | null>(null);
+  const { data: config } = useResource<Config>(!user.demo ? 'config' : null);
   if (user.demo) return null;
   function close() {
     setMode(null);
@@ -23,9 +27,15 @@ export function SecuritySettings({ user, refresh }: { user: PublicUser; refresh:
     e.preventDefault();
     const values = Object.fromEntries(new FormData(e.currentTarget));
     await action.run(async () => {
-      if (mode === 'mfa-start' && !enrollment)
-        setEnrollment(await api('security/mfa-start', 'POST', values));
-      else if (mode === 'mfa-start') {
+      if (mode === 'mfa-start' && !enrollment) {
+        const setup = await api<{ secret: string; uri: string }>(
+          'security/mfa-start',
+          'POST',
+          values,
+        );
+        const QR = await import('qrcode');
+        setEnrollment({ ...setup, qr: await QR.toDataURL(setup.uri, { width: 220, margin: 2 }) });
+      } else if (mode === 'mfa-start') {
         const result = await api<{ codes: string[] }>('security/mfa-enable', 'POST', values);
         setCodes(result.codes);
         setEnrollment(null);
@@ -63,7 +73,7 @@ export function SecuritySettings({ user, refresh }: { user: PublicUser; refresh:
         >
           {t(user.mfaEnabled ? 'disableMfa' : 'enableMfa')}
         </Button>
-        {user.email && !user.emailVerified && (
+        {user.email && !user.emailVerified && config?.integrations.email && (
           <Button
             type="button"
             variant="secondary"
@@ -78,6 +88,9 @@ export function SecuritySettings({ user, refresh }: { user: PublicUser; refresh:
           </Button>
         )}
       </div>
+      {user.email && !user.emailVerified && config && !config.integrations.email && (
+        <p className="muted">{t('emailUnavailable')}</p>
+      )}
       <p>{t('privacyAccountHelp')}</p>
       <div className="row wrap">
         <Button type="button" variant="secondary" onClick={() => setMode('export')}>
@@ -118,20 +131,29 @@ export function SecuritySettings({ user, refresh }: { user: PublicUser; refresh:
                 <Field label={t('currentPassword')}>
                   <input name="currentPassword" type="password" autoComplete="current-password" />
                 </Field>
-                <Button
-                  type="button"
-                  variant="secondary"
-                  onClick={() =>
-                    action.run(() => api('security/send-code', 'POST', { purpose: 'REAUTH' }))
-                  }
-                >
-                  {t('sendIdentityCode')}
-                </Button>
+                {config?.integrations.email && (
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    onClick={() =>
+                      action.run(() => api('security/send-code', 'POST', { purpose: 'REAUTH' }))
+                    }
+                  >
+                    {t('sendIdentityCode')}
+                  </Button>
+                )}
               </>
             )}
             {enrollment && (
               <>
                 <p>{t('enrollmentHelp')}</p>
+                <Image
+                  src={enrollment.qr}
+                  width={220}
+                  height={220}
+                  alt={t('authenticatorQr')}
+                  unoptimized
+                />
                 <code className="break-word">{enrollment.secret}</code>
               </>
             )}
