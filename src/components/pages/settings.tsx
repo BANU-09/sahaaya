@@ -5,7 +5,7 @@ import { useCare } from '../care-context';
 import { useLocale, LanguageSelect } from '../locale-provider';
 import { Button, Field, ErrorNotice, Loading, Modal, useAction } from '../ui';
 import { api, useResource, type PublicUser } from '@/lib/client';
-import { enablePush } from '@/lib/push';
+import { PushSettings } from '../push-settings';
 import { formatDate } from '@/lib/i18n';
 import { SecuritySettings } from '../security-settings';
 import { DoctorProfile } from '../doctor-profile';
@@ -157,26 +157,11 @@ export default function Settings() {
             </div>
             <Button busy={action.busy}>{t('save')}</Button>
           </form>
-          <Button
-            variant="secondary"
-            busy={action.busy}
-            onClick={() => action.run(enablePush, update)}
-          >
-            {t('pushReminders')}
-          </Button>
-          {status.preferences?.push && (
-            <Button
-              variant="ghost"
-              onClick={() =>
-                action.run(async () => {
-                  await api('push', 'DELETE');
-                  await api('settings', 'PATCH', { push: false });
-                }, update)
-              }
-            >
-              {t('revoke')}
-            </Button>
-          )}
+          <PushSettings
+            enabled={Boolean(status.preferences?.push)}
+            demo={user.demo}
+            onChange={update}
+          />
         </section>
         <section className="panel">
           <div className="panel-heading">
@@ -185,13 +170,16 @@ export default function Settings() {
           </div>
           <div>
             {[
+              { key: 'localOcr', name: 'On-device OCR · Tesseract + PDF.js' },
+              { key: 'calendarExport', name: 'Calendar · iCalendar (.ics)' },
+              { key: 'mapsLinks', name: 'Google Maps · search and directions' },
               { key: 'gemini', name: 'Google Gemini' },
               { key: 'vision', name: 'Google Cloud Vision' },
               { key: 'google', name: 'Google OAuth' },
-              { key: 'push', name: 'Firebase Cloud Messaging' },
-              { key: 'email', name: 'Resend' },
-              { key: 'storage', name: 'Google Cloud Storage' },
-              { key: 'maps', name: 'Google Maps' },
+              { key: 'push', name: 'Browser push notifications' },
+              { key: 'email', name: 'Transactional email' },
+              { key: 'storage', name: 'Encrypted private file storage' },
+              { key: 'maps', name: 'Google Places API' },
             ].map((integration) => (
               <div className="integration-row" key={integration.key}>
                 <strong>{integration.name}</strong>

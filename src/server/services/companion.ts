@@ -6,33 +6,25 @@ import { db } from '../db';
 import { gemini } from '../integrations/google';
 import { getText, formatDate } from '@/lib/i18n';
 import { ApiError } from '../errors';
+import { careIntent, CARE_LOOKUPS } from '@/lib/companion-intent';
 const intentSchema = z.object({
   intent: z.enum(['SCHEDULE', 'APPOINTMENTS', 'REFILLS', 'SUMMARY', 'EMERGENCY', 'OTHER']),
 });
 export async function companion(user: User, patientId: string, body: unknown) {
   const data = z
-    .object({ question: z.string().min(1).max(2000), useAI: z.boolean().default(false) })
+    .object({
+      question: z.string().min(1).max(2000),
+      useAI: z.boolean().default(false),
+      lookup: z
+        .enum(['todaySchedule', 'nextAppointment', 'estimatedStock', 'visitSummary'])
+        .optional(),
+    })
     .parse(body);
   const member = await authorize(user, patientId, 'profile.view');
   await rateLimit(`ai:${user.id}`, 10);
-  let intent = 'OTHER',
+  let intent = careIntent(data.question),
     mode = 'recordLookup';
-  const question = data.question.toLowerCase();
-  if (
-    /chest pain|can't breathe|cannot breathe|unconscious|ఛాతీ నొప్పి|ఊపిరి|மார்பு வலி|மூச்சு|सीने में दर्द|सांस नहीं|ಎದೆ ನೋವು|ಉಸಿರಾಟ|നെഞ്ചുവേദന|ശ്വാസ/.test(
-      question,
-    )
-  )
-    intent = 'EMERGENCY';
-  else if (
-    /appointment|doctor|వైద్య|సందర్శన|சந்திப்பு|மருத்துவர்|मुलाकात|डॉक्टर|ವೈದ್ಯ|ಭೇಟಿ|ഡോക്ടർ|സന്ദർശന/.test(
-      question,
-    )
-  )
-    intent = 'APPOINTMENTS';
-  else if (/refill|stock|నిల్వ|இருப்பு|भंडार|ದಾಸ್ತಾನು|സ്റ്റോക്ക്/.test(question)) intent = 'REFILLS';
-  else if (/medicine|dose|today|మందు|మందులు|மருந்து|दवा|दवाई|औषध|ಔಷಧ|ಮದ್ದು|മരുന്ന്/.test(question))
-    intent = 'SCHEDULE';
+  if (data.lookup && intent !== 'EMERGENCY') intent = CARE_LOOKUPS[data.lookup];
   if (data.useAI && intent !== 'EMERGENCY') {
     if (process.env.GEMINI_PRIVATE_DATA_ALLOWED !== 'true')
       throw new ApiError(503, 'privateAIUnavailable');

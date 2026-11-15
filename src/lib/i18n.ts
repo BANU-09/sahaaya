@@ -17,6 +17,54 @@ export const localeCode: Record<Locale, string> = {
 };
 type Row = [string, string, string, string, string, string];
 const rows: Record<string, Row> = {
+  demoExternalDisabled: [
+    'Use a personal account to enable external notifications. Shared demo accounts cannot send them.',
+    'బయటి నోటిఫికేషన్ల కోసం వ్యక్తిగత ఖాతా వాడండి. షేర్ చేసిన డెమో ఖాతాలు పంపలేవు.',
+    'வெளி அறிவிப்புகளுக்கு தனிப்பட்ட கணக்கைப் பயன்படுத்தவும். பகிரப்பட்ட டெமோவில் அனுப்ப முடியாது.',
+    'बाहरी सूचनाओं के लिए व्यक्तिगत खाता उपयोग करें। साझा डेमो उन्हें नहीं भेज सकता।',
+    'ಬಾಹ್ಯ ಸೂಚನೆಗಳಿಗೆ ವೈಯಕ್ತಿಕ ಖಾತೆ ಬಳಸಿ. ಹಂಚಿದ ಡೆಮೋ ಕಳುಹಿಸಲು ಸಾಧ್ಯವಿಲ್ಲ.',
+    'ബാഹ്യ അറിയിപ്പുകൾക്കായി വ്യക്തിഗത അക്കൗണ്ട് ഉപയോഗിക്കുക. പങ്കിട്ട ഡെമോയ്ക്ക് അയയ്ക്കാനാകില്ല.',
+  ],
+  testPush: [
+    'Send a test notification',
+    'పరీక్ష నోటిఫికేషన్ పంపండి',
+    'சோதனை அறிவிப்பை அனுப்பு',
+    'टेस्ट सूचना भेजें',
+    'ಪರೀಕ್ಷಾ ಸೂಚನೆ ಕಳುಹಿಸಿ',
+    'പരീക്ഷണ അറിയിപ്പ് അയയ്ക്കുക',
+  ],
+  testNotification: [
+    'Your SAHAAYA browser notifications are working.',
+    'మీ SAHAAYA బ్రౌజర్ నోటిఫికేషన్లు పనిచేస్తున్నాయి.',
+    'உங்கள் SAHAAYA உலாவி அறிவிப்புகள் செயல்படுகின்றன.',
+    'आपकी SAHAAYA ब्राउज़र सूचनाएँ काम कर रही हैं।',
+    'ನಿಮ್ಮ SAHAAYA ಬ್ರೌಸರ್ ಸೂಚನೆಗಳು ಕಾರ್ಯನಿರ್ವಹಿಸುತ್ತಿವೆ.',
+    'നിങ്ങളുടെ SAHAAYA ബ്രൗസർ അറിയിപ്പുകൾ പ്രവർത്തിക്കുന്നു.',
+  ],
+  downloadCalendar: [
+    'Download calendar event',
+    'క్యాలెండర్ ఈవెంట్ డౌన్‌లోడ్',
+    'நாட்காட்டி நிகழ்வைப் பதிவிறக்கு',
+    'कैलेंडर इवेंट डाउनलोड करें',
+    'ಕ್ಯಾಲೆಂಡರ್ ಈವೆಂಟ್ ಡೌನ್‌ಲೋಡ್',
+    'കലണ്ടർ ഇവന്റ് ഡൗൺലോഡ്',
+  ],
+  searchHospitals: [
+    'Find hospitals on Google Maps',
+    'Google Mapsలో ఆసుపత్రులు వెతకండి',
+    'Google Maps இல் மருத்துவமனைகளைத் தேடுங்கள்',
+    'Google Maps पर अस्पताल खोजें',
+    'Google Maps ನಲ್ಲಿ ಆಸ್ಪತ್ರೆಗಳನ್ನು ಹುಡುಕಿ',
+    'Google Maps ൽ ആശുപത്രികൾ തിരയുക',
+  ],
+  mapsPrivacy: [
+    'Opens Google Maps. No patient records are shared. Google may ask for your location; you can search a city instead.',
+    'Google Maps తెరుస్తుంది. రోగి రికార్డులు పంచుకోము. Google లొకేషన్ అడగవచ్చు; బదులుగా నగరం వెతకవచ్చు.',
+    'Google Maps திறக்கும். நோயாளி பதிவுகள் பகிரப்படாது. இருப்பிடத்திற்குப் பதில் நகரத்தைத் தேடலாம்.',
+    'Google Maps खुलेगा। रोगी रिकॉर्ड साझा नहीं होंगे। स्थान देने के बजाय शहर खोज सकते हैं।',
+    'Google Maps ತೆರೆಯುತ್ತದೆ. ರೋಗಿಯ ದಾಖಲೆಗಳನ್ನು ಹಂಚುವುದಿಲ್ಲ. ಸ್ಥಳದ ಬದಲು ನಗರವನ್ನು ಹುಡುಕಬಹುದು.',
+    'Google Maps തുറക്കും. രോഗിയുടെ രേഖകൾ പങ്കിടില്ല. ലൊക്കേഷനു പകരം നഗരം തിരയാം.',
+  ],
   sourceCode: ['Source code', 'సోర్స్ కోడ్', 'மூலக் குறியீடு', 'स्रोत कोड', 'ಮೂಲ ಕೋಡ್', 'സോഴ്സ് കോഡ്'],
   authenticatorQr: [
     'Scan with your authenticator app',

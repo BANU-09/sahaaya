@@ -123,6 +123,15 @@ export default function Emergency() {
         <Loading />
       )}
       <div className="row wrap section-space no-print" style={{ justifyContent: 'center' }}>
+        <a
+          className="button secondary"
+          href="https://www.google.com/maps/search/?api=1&query=hospitals+near+me"
+          target="_blank"
+          rel="noreferrer"
+        >
+          <MapPin size={17} />
+          {t('searchHospitals')}
+        </a>
         {config.data?.emergencyNumber && (
           <a className="button danger" href={`tel:${config.data.emergencyNumber}`}>
             <Phone size={18} />
@@ -155,6 +164,7 @@ export default function Emergency() {
           </Button>
         )}
       </div>
+      <p className="privacy-note no-print">{t('mapsPrivacy')}</p>
       {places.map((place, i) => (
         <article className="panel section-space no-print" key={i}>
           <h3>{place.displayName.text}</h3>

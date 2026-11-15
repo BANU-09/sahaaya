@@ -5,7 +5,7 @@ import { Plus, MapPin, Clock, FileText, CalendarDays } from 'lucide-react';
 import { useCare, type CareData } from '../care-context';
 import { useLocale } from '../locale-provider';
 import { Button, Field, Modal, Status, Empty, ErrorNotice, useAction } from '../ui';
-import { api } from '@/lib/client';
+import { api, useResource, type Config } from '@/lib/client';
 import { formatDate } from '@/lib/i18n';
 type Summary = {
   id: string;
@@ -23,6 +23,7 @@ export default function Appointments() {
   const { data, refresh, can } = useCare(),
     { t, locale } = useLocale(),
     action = useAction();
+  const config = useResource<Config>('config');
   const [open, setOpen] = useState(false),
     [selected, setSelected] = useState<CareData['appointments'][number] | null>(null),
     [summary, setSummary] = useState<Summary | null>(null),
@@ -123,11 +124,18 @@ export default function Appointments() {
                 </p>
                 <p>{appointment.purpose}</p>
                 {appointment.preparation && <p>{appointment.preparation}</p>}
-                <div className="row">
+                <div className="row wrap">
                   <Button variant="secondary" onClick={() => setSelected(appointment)}>
                     {t('edit')}
                   </Button>
-                  {!data.patient.demo && (
+                  <a
+                    className="button secondary"
+                    href={`/api/patients/${data.patient.id}/appointments/${appointment.id}/calendar.ics`}
+                  >
+                    <CalendarDays size={15} />
+                    {t('downloadCalendar')}
+                  </a>
+                  {!data.patient.demo && config.data?.integrations.google && (
                     <Button
                       variant="secondary"
                       onClick={() =>

@@ -7,6 +7,19 @@ import { appointmentSchema } from '@/lib/validation';
 import { ApiError } from '../errors';
 import { calendarAccessToken, checkedFetch } from '../integrations/google';
 import { digest } from '../crypto';
+import { appointmentCalendar } from '@/lib/calendar';
+export async function exportCalendar(user: User, patientId: string, id: string) {
+  await authorize(user, patientId, 'appointments.manage');
+  const appointment = await db.appointment.findFirst({ where: { id, patientId } });
+  if (!appointment) throw new ApiError(404, 'notFound');
+  return new Response(appointmentCalendar(appointment), {
+    headers: {
+      'Content-Type': 'text/calendar; charset=utf-8',
+      'Content-Disposition': 'attachment; filename="sahaaya-appointment.ics"',
+      'X-Content-Type-Options': 'nosniff',
+    },
+  });
+}
 export async function createAppointment(user: User, patientId: string, body: unknown) {
   const data = appointmentSchema.parse(body);
   return db.$transaction(async (tx) => {

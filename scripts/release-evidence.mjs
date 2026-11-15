@@ -1,6 +1,6 @@
 import { readFile, writeFile, readdir } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
-import { join } from 'node:path';
+import { join, relative } from 'node:path';
 const results = JSON.parse(await readFile('test-results/results.json', 'utf8'));
 const coverage = JSON.parse(await readFile('coverage/coverage-summary.json', 'utf8'));
 const log = (await readFile('.data/coverage-release.log', 'utf8')).replace(/\u001b\[[0-9;]*m/g, '');
@@ -34,14 +34,12 @@ await writeFile(
       sourceFingerprint: hash.digest('hex'),
       unitTests: { passed: units },
       browserAndApiTests: results.stats,
-      coverageScope: [
-        'src/lib/schedule.ts',
-        'src/lib/permissions.ts',
-        'src/lib/validation.ts',
-        'src/server/crypto.ts',
-      ],
+      coverageScope: Object.keys(coverage)
+        .filter((file) => file !== 'total')
+        .map((file) => relative(process.cwd(), file).replaceAll('\\', '/'))
+        .sort(),
       coverage: coverage.total,
-      note: 'Coverage is for the listed utilities, not the entire application. Public production checks are recorded separately. CI validates its own commit.',
+      note: 'Coverage is for the listed modules, not the entire application. Public production checks are recorded separately. CI validates its own commit.',
     },
     null,
     2,

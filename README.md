@@ -26,12 +26,14 @@ The public deployment uses free Vercel hosting, Neon PostgreSQL and a Cloudflare
 - An independent Care Loop creates due/follow-up/escalated alerts and tracks human acknowledgement/resolution. Unconfirmed does not mean missed.
 - Appointments, family synchronization, tasks, journal, vitals, adherence trends, private documents, patient-approved printable visit summaries and expiring/revocable Emergency Passport QR links.
 - A companion answers from authorized saved records. Optional Gemini classifies question intent; source records supply the answer. Voice uses available browser capabilities.
-- Private GCS, Calendar, Places, Firebase push and Resend adapters with explicit unavailable/error states.
+- Authenticated iCalendar downloads for appointments, with stable event IDs, cancellation state and no patient names or clinical details. Import the file into Google, Apple or Outlook Calendar; this is an explicit export, not automatic sync.
+- Free Google Maps links for hospital search and appointment directions. No API key is required; patient records are not included in search links.
+- Optional GCS, Google Calendar/Places, Firebase, Resend and Brevo adapters with explicit unavailable/error states. Settings distinguishes the actual active storage and notification providers from optional Google services.
 - On-device image/PDF OCR for prescriptions, reports, discharge notes, appointment slips and packaging; editable, field-by-field reviewed transcripts with original-document provenance.
 - Versioned document metadata, recipient-acknowledged caregiver handovers, custom date-range adherence heatmaps/vital trends, reviewed companion drafts, and operator-gated doctor applications.
-- Standard Web Push with generated VAPID credentials, delivery receipts and expired-subscription cleanup; signed Resend webhook adapter with deduplication.
+- Standard Web Push with generated VAPID credentials, delivery receipts and expired-subscription cleanup. Personal accounts can send a generic self-test and see provider acceptance separately from a browser receipt. Shared demo accounts cannot send external notifications. The Resend webhook adapter verifies signatures and deduplicates callbacks.
 
-See [QUALITY_REPORT.md](QUALITY_REPORT.md) for measured results and limits: **99 unit tests and 34 browser/API journeys passed locally**, with zero serious/critical axe violations on the tested screens. These are measured checks, not a hackathon score. Cloud AI, email/SMS, Google OAuth/Calendar/Maps and live clinic booking are not active in the free deployment. Browser notification delivery requires permission and a supported browser. This project does not claim clinical or compliance certification.
+See [QUALITY_REPORT.md](QUALITY_REPORT.md) for measured results and limits: **126 unit tests across 16 files and 38 browser/API journeys passed locally**, with zero serious/critical axe violations on the tested screens. The release evidence and CI identify which source was tested. These are measured checks, not a hackathon score. Cloud AI, email/SMS, Google OAuth/Calendar API/Places API and live clinic booking are not active in the free deployment. Calendar-file export and Google Maps links do not depend on those APIs. Browser notification delivery requires permission and a supported browser. This project does not claim clinical or compliance certification.
 
 ## Start locally
 
@@ -74,12 +76,13 @@ npm run test:e2e
 
 Tests use installed Google Chrome. Alternatively run `npx playwright install chromium` and set PLAYWRIGHT_BROWSER to `chromium`. Use a **disposable local database**, DEMO_MODE=true, external notifications disabled and the origin above. Tests create unique `@example.invalid` accounts and clean them afterward; browser journeys reset fictional demo records. Do not run against real patients or concurrently with a worker while API tests deliberately advance scheduler time.
 
-Evidence: `coverage/index.html`, `coverage/coverage-summary.json`, `playwright-report/index.html`, `test-results/results.json` and screenshots. Final evidence is copied to `docs/evidence`. Coverage measures only scheduling, permissions, validation and cryptography utilities; it is not whole-product coverage or a hackathon score.
+Evidence: `coverage/index.html`, `coverage/coverage-summary.json`, `playwright-report/index.html`, `test-results/results.json` and screenshots. Final evidence is copied to `docs/evidence`. The measured modules are listed in `vitest.config.ts` and the release summary; this is not whole-product coverage or a hackathon score.
 
 ## Documentation
 
 - [Architecture and API](docs/ARCHITECTURE.md)
 - [Integrations and deployment](docs/INTEGRATIONS_AND_DEPLOYMENT.md)
+- [Remaining provider setup and credential handoff](docs/PROVIDER_HANDOFF.md)
 - [Quality report](QUALITY_REPORT.md)
 - [Requirement traceability and gaps](docs/REQUIREMENTS.md)
 - [Original requested scope](docs/MASTER_BRIEF.md)

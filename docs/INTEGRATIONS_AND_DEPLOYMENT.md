@@ -15,6 +15,14 @@ Author: **BanuSreya**. Public app: https://sahaaya-mauve.vercel.app.
 
 The ten-minute interval lets the database suspend between checks. Free quotas may pause services; no paid upgrade or billing commitment is configured. This is a hackathon demonstration rather than a guaranteed clinical monitoring service.
 
+## Free integrations in source
+
+- **Calendar export:** an authenticated appointment action downloads an `.ics` file for Google, Apple or Outlook Calendar. Stable UID and cancellation status preserve appointment identity; only a generic title and times leave SAHAAYA. No patient name, clinical notes or medicine details are exported. Import is explicit; automatic Google Calendar sync remains a separate optional integration.
+- **Google Maps links:** hospital search and appointment directions open Google Maps without an API key. Hospital-search links contain no patient records. Location is optional in Google Maps; a city can be entered instead. These links are not the Places API.
+- **Web Push self-test:** a personal account can send a generic, rate-limited test to its most recently registered device. Settings polls for the authenticated service-worker receipt and distinguishes `ACCEPTED` from `DELIVERED`. Shared fictional demo accounts cannot send tests. Real-device acceptance still must be checked after deployment.
+
+Settings labels reflect the actual service: encrypted private storage and standard browser push are not presented as active GCS or Firebase services.
+
 ## Secrets and release procedure
 
 1. Link the intended Vercel project. Keep production secrets in the hosting secret manager. This workspace's private copy is `.data/production.env`; it is excluded from Git and deployment uploads. Do not put it in `.env.production.local`, which Next would auto-load during local builds.
@@ -23,21 +31,23 @@ The ten-minute interval lets the database suspend between checks. Free quotas ma
 4. Run the checks in QUALITY_REPORT.md, deploy the intended commit and verify `/api/health`. The worker heartbeat must be healthy as well as the database connected.
 5. Configure Cloudflare with only APP_URL and WORKER_SECRET. It calls POST `/api/internal/worker`; it does not receive database or encryption credentials. `deploy/wrangler.jsonc` describes the schedule.
 6. Run the synthetic production smoke check, open the demo in a real browser and confirm the next scheduled heartbeat. Provider acceptance does not establish device or inbox delivery.
+7. Verify the new release's calendar download, permission denial for another account, keyless Maps link, and personal-account push self-test. Confirm a browser receipt before reporting notification delivery.
 
 GitHub CI uses a disposable PostgreSQL container and no production secrets. A source push alone does not imply a new Vercel deployment; verify the production release separately.
 
 ## Optional adapters — inactive
 
-| Service               | Required configuration                                                               | Acceptance still required                                                                               |
-| --------------------- | ------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------- |
-| Google OAuth/Calendar | Client ID/secret, exact HTTPS callback, consent screen; encrypted refresh tokens     | Sign-in/linking, declined consent, calendar creation/update/cancel, revoked token                       |
-| Gemini/Vision         | Authorized model/service account and suitable data-processing terms                  | Do not send sensitive data using an unsuitable free tier; consent, input provenance and clinical review |
-| Maps/Places           | Restricted server key and eligible project                                           | Location denial, real search and quota/error behavior                                                   |
-| GCS                   | Private bucket and workload identity/ADC                                             | Private upload/download, revocation, deletion and retention                                             |
-| Firebase              | Web app/VAPID + service identity                                                     | Real supported-device delivery                                                                          |
-| Resend                | API key, an authorized verified sending domain and EMAIL_FROM; RESEND_WEBHOOK_SECRET | Email ownership, recovery/reminder inbox delivery, signature verification and retry callbacks           |
+| Service               | Required configuration                                                               | Acceptance still required                                                                                                                        |
+| --------------------- | ------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Google OAuth/Calendar | Client ID/secret, exact HTTPS callback, consent screen; encrypted refresh tokens     | Sign-in/linking, declined consent, calendar creation/update/cancel, revoked token                                                                |
+| Gemini/Vision         | Authorized model/service account and suitable data-processing terms                  | Do not send sensitive data using an unsuitable free tier; consent, input provenance and clinical review                                          |
+| Maps/Places           | Restricted server key and eligible project                                           | Location denial, real search and quota/error behavior                                                                                            |
+| GCS                   | Private bucket and workload identity/ADC                                             | Private upload/download, revocation, deletion and retention                                                                                      |
+| Firebase              | Web app/VAPID + service identity                                                     | Real supported-device delivery                                                                                                                   |
+| Resend                | API key, an authorized verified sending domain and EMAIL_FROM; RESEND_WEBHOOK_SECRET | Email ownership, recovery/reminder inbox delivery, signature verification and retry callbacks                                                    |
+| Brevo                 | EMAIL_PROVIDER=brevo, BREVO_API_KEY, EMAIL_FROM and an authorized verified sender    | Free account activation, sender verification and actual verification/recovery/reminder inbox delivery; provider acceptance alone is not delivery |
 
-Email stays disabled until a different authorized sending domain is selected. SMS and automatic clinic booking are not implemented. Browser speech/camera/location require support and permission; text/manual alternatives remain available.
+Email stays disabled until an authorized sender is configured and delivery is checked. `EMAIL_PROVIDER=resend` is the default; `EMAIL_PROVIDER=brevo` selects the alternate adapter. Brevo is implemented but not activated. Resend's signed webhook is provider-specific and does not verify Brevo delivery. SMS and automatic clinic booking are not implemented. Browser speech/camera/location require support and permission; text/manual alternatives remain available.
 
 The old Procfile/app.json are optional adapters for separately provisioned conventional web/worker hosting. Heroku was not used and is not required for the current free setup.
 

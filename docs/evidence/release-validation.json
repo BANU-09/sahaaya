@@ -1,48 +1,53 @@
 {
   "author": "BanuSreya",
-  "checkedAt": "2026-11-15T10:49:17.751Z",
-  "sourceFingerprint": "832732dd32e76e25925af48a1bf94585190ff2ea42b5d783d36505fe36b0885b",
+  "checkedAt": "2026-11-15T11:21:26.328Z",
+  "sourceFingerprint": "26b740c23ba5e9c5c26d019bcfff6b415a0773931032679c44c565eaf2e6659e",
   "unitTests": {
-    "passed": 99
+    "passed": 126
   },
   "browserAndApiTests": {
-    "startTime": "2026-11-15T10:47:09.531Z",
-    "duration": 47588.244,
-    "expected": 34,
+    "startTime": "2026-11-15T11:19:59.337Z",
+    "duration": 73008.329,
+    "expected": 38,
     "skipped": 0,
     "unexpected": 0,
     "flaky": 0
   },
   "coverageScope": [
-    "src/lib/schedule.ts",
+    "src/lib/calendar.ts",
+    "src/lib/companion-intent.ts",
     "src/lib/permissions.ts",
+    "src/lib/schedule.ts",
     "src/lib/validation.ts",
-    "src/server/crypto.ts"
+    "src/server/crypto.ts",
+    "src/server/integrations/email.ts",
+    "src/server/integrations/http.ts",
+    "src/server/services/push.ts"
   ],
   "coverage": {
     "lines": {
-      "total": 82,
-      "covered": 82,
+      "total": 135,
+      "covered": 134,
       "skipped": 0,
-      "pct": 100
+      "pct": 99.25
     },
     "statements": {
-      "total": 101,
-      "covered": 101,
+      "total": 162,
+      "covered": 160,
       "skipped": 0,
-      "pct": 100
+      "pct": 98.76
     },
     "functions": {
-      "total": 29,
-      "covered": 29,
+      "total": 37,
+      "covered": 37,
       "skipped": 0,
       "pct": 100
     },
     "branches": {
-      "total": 78,
-      "covered": 78,
+      "total": 131,
+      "covered": 129,
       "skipped": 0,
-      "pct": 100
+      "pct": 98.47
     },
     "branchesTrue": {
       "total": 0,
@@ -51,5 +56,5 @@
       "pct": 100
     }
   },
-  "note": "Coverage is for the listed utilities, not the entire application. Public production checks are recorded separately. CI validates its own commit."
+  "note": "Coverage is for the listed modules, not the entire application. Public production checks are recorded separately. CI validates its own commit."
 }

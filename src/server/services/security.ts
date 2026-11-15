@@ -8,6 +8,7 @@ import { ApiError } from '../errors';
 import { createSession, publicUser, rateLimit } from '../auth';
 import { decrypt, digest, encrypt, token, verifySecret } from '../crypto';
 import { sendEmail } from '../integrations/notifications';
+import { emailConfigured } from '../integrations/email';
 
 const PENDING = 'sahaaya_mfa';
 const proofSchema = z.object({
@@ -136,7 +137,7 @@ export async function securityAction(user: User, action: string, body: unknown, 
   if (user.demo) throw new ApiError(403, 'forbidden');
   if (action === 'send-code') {
     const { purpose } = z.object({ purpose: z.enum(['VERIFY_EMAIL', 'REAUTH']) }).parse(body);
-    if (!user.email || !process.env.RESEND_API_KEY) throw new ApiError(503, 'notConfigured');
+    if (!user.email || !emailConfigured()) throw new ApiError(503, 'notConfigured');
     await rateLimit(`email-code:${user.id}`, 3, 15 * 60000);
     const code = String(randomInt(100000, 1000000));
     await db.identityChallenge.updateMany({

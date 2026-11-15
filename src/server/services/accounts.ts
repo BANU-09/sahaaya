@@ -8,6 +8,7 @@ import { hashSecret, verifySecret, token, digest } from '../crypto';
 import { createSession, publicUser, rateLimit, SESSION_COOKIE, authenticate } from '../auth';
 import { DEMO_USERS, seedDemo } from './demo';
 import { sendEmail } from '../integrations/notifications';
+import { emailConfigured } from '../integrations/email';
 import { beginSignIn, finishSignIn } from './security';
 export async function authAction(action: string, request: Request) {
   const body = await readJson(request);
@@ -90,7 +91,7 @@ export async function authAction(action: string, request: Request) {
   if (action === 'recover') {
     const { email } = z.object({ email: z.email().toLowerCase() }).parse(body);
     await rateLimit(`recover:${email}`, 3, 3600_000);
-    if (!process.env.RESEND_API_KEY) throw new ApiError(503, 'notConfigured');
+    if (!emailConfigured()) throw new ApiError(503, 'notConfigured');
     const user = await db.user.findFirst({ where: { email, demo: false } });
     if (user) {
       const value = token();

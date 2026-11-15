@@ -6,6 +6,7 @@ import { useLocale } from '../locale-provider';
 import { Button, ErrorNotice, ReadAloud, VoiceInput, useAction } from '../ui';
 import { api, useResource, type Config } from '@/lib/client';
 import { CompanionActions } from '../companion-actions';
+import { CARE_LOOKUPS } from '@/lib/companion-intent';
 type Answer = { text: string; mode: string; sources: { id: string; type: string }[] };
 export default function Assistant() {
   const { data, user } = useCare(),
@@ -15,11 +16,15 @@ export default function Assistant() {
     [useAI, setUseAI] = useState(false),
     [messages, setMessages] = useState<{ question: string; answer: Answer }[]>([]);
   const config = useResource<Config>('config');
-  async function ask(value: string) {
+  async function ask(value: string, lookup?: keyof typeof CARE_LOOKUPS) {
     if (!value.trim()) return;
     await action.run(
       () =>
-        api<Answer>(`patients/${data.patient.id}/companion`, 'POST', { question: value, useAI }),
+        api<Answer>(`patients/${data.patient.id}/companion`, 'POST', {
+          question: value,
+          useAI,
+          lookup,
+        }),
       (answer) => {
         setMessages((old) => [...old, { question: value, answer }]);
         setQuestion('');
@@ -39,8 +44,8 @@ export default function Assistant() {
         <p>{t('dashboardIntro')}</p>
       </div>
       <div className="suggested-questions">
-        {['todaySchedule', 'nextAppointment', 'estimatedStock', 'visitSummary'].map((key) => (
-          <button key={key} disabled={action.busy} onClick={() => ask(t(key))}>
+        {(Object.keys(CARE_LOOKUPS) as (keyof typeof CARE_LOOKUPS)[]).map((key) => (
+          <button key={key} disabled={action.busy} onClick={() => ask(t(key), key)}>
             {t(key)}
             <ArrowUpRight size={18} />
           </button>

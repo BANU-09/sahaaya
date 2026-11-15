@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { db } from './db';
-import { authenticate, authorize, audit, publicUser, rateLimit, checkOrigin } from './auth';
+import { authenticate, authorize, audit, rateLimit, checkOrigin } from './auth';
 import { ApiError, readJson, errorResponse } from './errors';
 import { authAction } from './services/accounts';
 import { securityAction } from './services/security';
@@ -16,7 +16,12 @@ import {
   confirmDose,
 } from './services/medications';
 import { inviteMember, acceptInvitation } from './services/circle';
-import { createAppointment, updateAppointment, syncCalendar } from './services/appointments';
+import {
+  createAppointment,
+  updateAppointment,
+  syncCalendar,
+  exportCalendar,
+} from './services/appointments';
 import {
   uploadDocument,
   listDocuments,
@@ -25,19 +30,22 @@ import {
   createSummary,
 } from './services/records';
 import { companion } from './services/companion';
+import { testPush } from './services/push';
+import { onboardPatient, getMe, getSettings, updateSettings } from './services/profile-settings';
+import { createJournal, createVital, careTasks, updateAlert } from './services/care';
+import { patientProfile, emergencySharing, nearbyHospitals } from './services/emergency';
 import { runScheduler } from './services/worker';
 import { seedDemo } from './services/demo';
-import { queueCareUpdate } from './services/outbox';
-import { integrationStatus, checkedFetch } from './integrations/google';
+import { integrationStatus } from './integrations/google';
 import { webPushSubscription } from './integrations/web-push';
 import { emailWebhook } from './services/delivery';
 import { careAnalytics } from './services/analytics';
 import { recordExtraction } from './services/extractions';
 import { companionDraft } from './services/companion-drafts';
 import { doctorProfile, doctorReview } from './services/doctors';
-import { journalSchema, taskSchema, languages, timezone } from '@/lib/validation';
 import { PERMISSIONS } from '@/lib/permissions';
-import { token, digest, hashSecret, verifySecret } from './crypto';
+import { digest } from './crypto';
+import { assertItemRoute } from './route-boundaries';
 
 export async function dispatch(request: Request, path: string[]): Promise<unknown> {
   const method = request.method,
@@ -114,117 +122,14 @@ export async function dispatch(request: Request, path: string[]): Promise<unknow
     return securityAction(user, path[1], await readJson(request), session.id);
   if (path[0] === 'privacy' && method === 'POST')
     return privacyAction(user, path[1], await readJson(request));
-  if (path[0] === 'onboarding' && method === 'POST') {
-    z.object({ consent: z.literal(true) }).parse(await readJson(request));
-    if (user.demo) throw new ApiError(403, 'forbidden');
-    return db.$transaction(async (tx) => {
-      if (await tx.patient.findUnique({ where: { ownerId: user.id } }))
-        throw new ApiError(409, 'conflict');
-      const patient = await tx.patient.create({
-        data: {
-          ownerId: user.id,
-          name: user.name,
-          timezone: user.timezone,
-          allergies: [],
-          conditions: [],
-          circle: {
-            create: {
-              members: {
-                create: {
-                  userId: user.id,
-                  role: 'PATIENT',
-                  relationship: 'Self',
-                  consentedAt: new Date(),
-                  permissions: { create: PERMISSIONS.map((key) => ({ key })) },
-                },
-              },
-            },
-          },
-        },
-      });
-      await audit(patient.id, user, 'profileUpdated', patient.id, tx);
-      return { id: patient.id };
-    });
-  }
-  if (path[0] === 'me' && method === 'GET') {
-    const memberships = await db.membership.findMany({
-      where: { userId: user.id, revokedAt: null, circle: { patient: { demo: user.demo } } },
-      select: { role: true, circle: { select: { patient: { select: { id: true, name: true } } } } },
-    });
-    const doctorVerified =
-      user.demo ||
-      !memberships.some((m) => m.role === 'DOCTOR') ||
-      Boolean(
-        await db.doctor.findFirst({
-          where: { userId: user.id, verifiedAt: { not: null } },
-          select: { id: true },
-        }),
-      );
-    return {
-      user: publicUser(user),
-      patients: memberships
-        .filter((m) => m.role !== 'DOCTOR' || doctorVerified)
-        .map((m) => ({ ...m.circle.patient, role: m.role })),
-    };
-  }
+  if (path[0] === 'onboarding' && method === 'POST') return onboardPatient(user, request);
+  if (path[0] === 'me' && method === 'GET') return getMe(user);
   if (path[0] === 'settings') {
-    if (method === 'GET')
-      return {
-        user: publicUser(user),
-        preferences: await db.notificationPreference.findUnique({ where: { userId: user.id } }),
-        sessions: await db.session.findMany({
-          where: { userId: user.id, expiresAt: { gt: new Date() } },
-          select: { id: true, device: true, createdAt: true },
-          take: 20,
-        }),
-        currentSession: session.id,
-        integrations: integrationStatus(),
-        reminderCheckMinutes: Number(process.env.REMINDER_CHECK_MINUTES || 1),
-        googleConnected: Boolean(
-          await db.googleAccount.findFirst({
-            where: { userId: user.id, encryptedRefreshToken: { not: null } },
-          }),
-        ),
-      };
-    if (method === 'PATCH') {
-      const data = z
-        .object({
-          language: z.enum(languages).optional(),
-          easyMode: z.boolean().optional(),
-          timezone: timezone.optional(),
-          pin: z
-            .string()
-            .regex(/^\d{6}$/)
-            .optional(),
-          currentPassword: z.string().max(128).optional(),
-          email: z.boolean().optional(),
-          push: z.boolean().optional(),
-          quietStart: z.number().int().min(0).max(23).optional(),
-          quietEnd: z.number().int().min(0).max(23).optional(),
-        })
-        .parse(await readJson(request));
-      if (data.pin && !(await verifySecret(data.currentPassword || '', user.passwordHash)))
-        throw new ApiError(403, 'invalidCredentials');
-      const { language, easyMode, timezone: zone, pin, ...prefs } = data;
-      delete prefs.currentPassword;
-      await db.user.update({
-        where: { id: user.id },
-        data: {
-          language,
-          easyMode,
-          timezone: zone,
-          ...(pin ? { pinHash: await hashSecret(pin) } : {}),
-        },
-      });
-      await db.notificationPreference.upsert({
-        where: { userId: user.id },
-        create: { userId: user.id, ...prefs },
-        update: prefs,
-      });
-      return { message: 'saved' };
-    }
+    if (method === 'GET') return getSettings(user, session.id);
+    if (method === 'PATCH') return updateSettings(user, request);
   }
   if (path[0] === 'sessions' && method === 'DELETE') {
+    if (!path[1]) throw new ApiError(400, 'invalidInput');
     await db.session.deleteMany({ where: { id: path[1], userId: user.id } });
     return { message: 'saved' };
   }
@@ -257,6 +162,7 @@ export async function dispatch(request: Request, path: string[]): Promise<unknow
         take: 50,
       });
     if (method === 'PATCH') {
+      if (!path[1]) throw new ApiError(400, 'invalidInput');
       await db.notification.updateMany({
         where: { id: path[1], userId: user.id },
         data: { readAt: new Date() },
@@ -265,6 +171,15 @@ export async function dispatch(request: Request, path: string[]): Promise<unknow
     }
   }
   if (path[0] === 'push') {
+    if (path[1] === 'test' && method === 'POST') return testPush(user);
+    if (path[1] === 'test' && path[2] && method === 'GET') {
+      const item = await db.notification.findFirst({
+        where: { id: path[2], userId: user.id, key: 'testNotification', channel: 'PUSH' },
+        select: { status: true, deliveredAt: true, acceptedAt: true },
+      });
+      if (!item) throw new ApiError(404, 'notFound');
+      return item;
+    }
     if (path[1] === 'receipt' && method === 'POST') {
       const { notificationId } = z
         .object({ notificationId: z.string().max(100) })
@@ -347,6 +262,7 @@ export async function dispatch(request: Request, path: string[]): Promise<unknow
     resource = path[2],
     id = path[3],
     action = path[4];
+  assertItemRoute(resource, method, id);
   if (resource === 'dashboard' && method === 'GET') return dashboard(user, patientId);
   if (resource === 'analytics' && method === 'GET') return careAnalytics(user, patientId, url);
   if (resource === 'medications') {
@@ -400,6 +316,7 @@ export async function dispatch(request: Request, path: string[]): Promise<unknow
       return createAppointment(user, patientId, await readJson(request));
     if (method === 'PATCH') return updateAppointment(user, patientId, id, await readJson(request));
     if (method === 'POST' && action === 'calendar') return syncCalendar(user, patientId, id);
+    if (method === 'GET' && action === 'calendar.ics') return exportCalendar(user, patientId, id);
   }
   if (resource === 'invitations' && method === 'POST')
     return inviteMember(user, patientId, await readJson(request));
@@ -428,104 +345,10 @@ export async function dispatch(request: Request, path: string[]): Promise<unknow
     }
     return { message: 'saved' };
   }
-  if (resource === 'journal' && method === 'POST') {
-    await authorize(user, patientId, 'journal.write');
-    const data = journalSchema.parse(await readJson(request));
-    const item = await db.journalEntry.create({ data: { ...data, patientId, actorId: user.id } });
-    await audit(patientId, user, 'journalCreated', item.id);
-    return item;
-  }
-  if (resource === 'vitals' && method === 'POST') {
-    await authorize(user, patientId, 'journal.write');
-    const data = z
-      .object({
-        kind: z.enum(['BLOOD_PRESSURE', 'PULSE', 'WEIGHT', 'GLUCOSE']),
-        value: z.number().positive().max(1000),
-        secondaryValue: z.number().positive().max(300).optional(),
-      })
-      .parse(await readJson(request));
-    const units = { BLOOD_PRESSURE: 'mmHg', PULSE: 'bpm', WEIGHT: 'kg', GLUCOSE: 'mg/dL' };
-    const item = await db.vital.create({
-      data: { ...data, unit: units[data.kind], patientId, actorId: user.id },
-    });
-    await audit(patientId, user, 'vitalCreated', item.id);
-    return item;
-  }
-  if (resource === 'tasks') {
-    await authorize(user, patientId, 'tasks.manage');
-    if (method === 'POST') {
-      const data = taskSchema.parse(await readJson(request));
-      if (
-        data.assignedTo &&
-        !(await db.membership.findFirst({
-          where: { userId: data.assignedTo, circle: { patientId }, revokedAt: null },
-        }))
-      )
-        throw new ApiError(403, 'forbidden');
-      const task = await db.careTask.create({
-        data: { ...data, patientId, dueAt: new Date(data.dueAt), createdBy: user.id },
-      });
-      await audit(patientId, user, 'taskCreated', task.id);
-      await queueCareUpdate(
-        db,
-        patientId,
-        'taskAssigned',
-        `task:${task.id}`,
-        false,
-        task.assignedTo || undefined,
-      );
-      return task;
-    }
-    if (method === 'PATCH') {
-      const data = z
-        .object({
-          status: z.enum(['OPEN', 'COMPLETED']),
-          note: z.string().max(2000).optional(),
-          assignedTo: z.string().optional(),
-        })
-        .parse(await readJson(request));
-      if (
-        data.assignedTo &&
-        !(await db.membership.findFirst({
-          where: { userId: data.assignedTo, circle: { patientId }, revokedAt: null },
-        }))
-      )
-        throw new ApiError(403, 'forbidden');
-      await db.careTask.updateMany({
-        where: { id, patientId },
-        data: {
-          ...data,
-          completedBy: data.status === 'COMPLETED' ? user.id : null,
-          completedAt: data.status === 'COMPLETED' ? new Date() : null,
-        },
-      });
-      await audit(patientId, user, 'taskCompleted', id);
-      return { message: 'saved' };
-    }
-  }
-  if (resource === 'alerts' && method === 'PATCH') {
-    await authorize(user, patientId, 'tasks.manage');
-    const data = z
-      .object({ action: z.enum(['ACKNOWLEDGE', 'RESOLVE']), followup: z.string().min(3).max(2000) })
-      .parse(await readJson(request));
-    const changed = await db.careAlert.updateMany({
-      where: { id, patientId, resolvedAt: null },
-      data: {
-        followup: data.followup,
-        ...(data.action === 'ACKNOWLEDGE'
-          ? { acknowledgedBy: user.id, acknowledgedAt: new Date() }
-          : { resolvedAt: new Date() }),
-      },
-    });
-    if (!changed.count) throw new ApiError(409, 'conflict');
-    await audit(
-      patientId,
-      user,
-      data.action === 'ACKNOWLEDGE' ? 'alertAcknowledged' : 'alertResolved',
-      id,
-    );
-    return { message: 'saved' };
-  }
+  if (resource === 'journal' && method === 'POST') return createJournal(user, patientId, request);
+  if (resource === 'vitals' && method === 'POST') return createVital(user, patientId, request);
+  if (resource === 'tasks') return careTasks(user, patientId, id, request);
+  if (resource === 'alerts' && method === 'PATCH') return updateAlert(user, patientId, id, request);
   if (resource === 'documents') {
     if (id && action === 'extractions' && ['POST', 'PATCH'].includes(method))
       return recordExtraction(user, patientId, id, method, await readJson(request));
@@ -586,93 +409,9 @@ export async function dispatch(request: Request, path: string[]): Promise<unknow
       skip: (page - 1) * 25,
     });
   }
-  if (resource === 'profile') {
-    const member = await authorize(user, patientId, 'emergency.view');
-    if (method === 'GET') {
-      const p = member.circle.patient;
-      return {
-        name: p.name,
-        bloodGroup: p.bloodGroup,
-        allergies: p.allergies,
-        conditions: p.conditions,
-        emergencyName: p.emergencyName,
-        emergencyPhone: p.emergencyPhone,
-        hospital: p.hospital,
-        primaryDoctor: p.primaryDoctor,
-        followupMinutes: p.followupMinutes,
-        escalateMinutes: p.escalateMinutes,
-      };
-    }
-    if (method === 'PATCH') {
-      if (member.role !== 'PATIENT') throw new ApiError(403, 'patientConsentRequired');
-      const data = z
-        .object({
-          bloodGroup: z.string().max(10).optional(),
-          allergies: z.array(z.string().max(200)).max(30).optional(),
-          conditions: z.array(z.string().max(200)).max(30).optional(),
-          emergencyName: z.string().max(100).optional(),
-          emergencyPhone: z
-            .string()
-            .regex(/^\+?[0-9]{8,15}$/)
-            .optional(),
-          hospital: z.string().max(200).optional(),
-          primaryDoctor: z.string().max(200).optional(),
-          followupMinutes: z.number().int().min(5).max(120).optional(),
-          escalateMinutes: z.number().int().min(10).max(240).optional(),
-        })
-        .parse(await readJson(request));
-      if (
-        (data.followupMinutes || member.circle.patient.followupMinutes) >=
-        (data.escalateMinutes || member.circle.patient.escalateMinutes)
-      )
-        throw new ApiError(400, 'invalidInput');
-      await db.patient.update({ where: { id: patientId }, data });
-      await audit(patientId, user, 'profileUpdated', patientId);
-      return { message: 'saved' };
-    }
-  }
-  if (resource === 'emergency-share') {
-    const member = await authorize(user, patientId, 'emergency.view');
-    if (member.role !== 'PATIENT') throw new ApiError(403, 'patientConsentRequired');
-    if (method === 'POST') {
-      const value = token();
-      const share = await db.emergencyShare.create({
-        data: { patientId, tokenHash: digest(value), expiresAt: new Date(Date.now() + 3600_000) },
-      });
-      await audit(patientId, user, 'emergency', share.id);
-      return {
-        id: share.id,
-        url: `${process.env.APP_URL}/passport?token=${value}`,
-        expiresAt: share.expiresAt,
-      };
-    }
-    if (method === 'DELETE') {
-      await db.emergencyShare.updateMany({ where: { patientId }, data: { revokedAt: new Date() } });
-      return { message: 'saved' };
-    }
-  }
-  if (resource === 'nearby' && method === 'POST') {
-    await authorize(user, patientId, 'profile.view');
-    if (!process.env.GOOGLE_MAPS_API_KEY) throw new ApiError(503, 'notConfigured');
-    const data = z
-      .object({ latitude: z.number().min(-90).max(90), longitude: z.number().min(-180).max(180) })
-      .parse(await readJson(request));
-    await rateLimit(`maps:${user.id}`, 5);
-    const result = await checkedFetch('https://places.googleapis.com/v1/places:searchNearby', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-Goog-Api-Key': process.env.GOOGLE_MAPS_API_KEY,
-        'X-Goog-FieldMask': 'places.displayName,places.formattedAddress,places.googleMapsUri',
-      },
-      body: JSON.stringify({
-        includedTypes: ['hospital'],
-        maxResultCount: 5,
-        locationRestriction: { circle: { center: data, radius: 5000 } },
-      }),
-    });
-    return result.json();
-  }
+  if (resource === 'profile') return patientProfile(user, patientId, request);
+  if (resource === 'emergency-share') return emergencySharing(user, patientId, request);
+  if (resource === 'nearby' && method === 'POST') return nearbyHospitals(user, patientId, request);
   throw new ApiError(404, 'notFound');
 }
 export async function handle(request: Request, path: string[]) {

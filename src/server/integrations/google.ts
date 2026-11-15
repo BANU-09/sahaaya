@@ -3,8 +3,14 @@ import { z } from 'zod';
 import { ApiError } from '../errors';
 import { extractedSchema } from '@/lib/validation';
 import { decrypt } from '../crypto';
+import { checkedFetch } from './http';
+import { emailConfigured } from './email';
+export { checkedFetch } from './http';
 export function integrationStatus() {
   return {
+    localOcr: true,
+    calendarExport: true,
+    mapsLinks: true,
     gemini: Boolean(
       process.env.GEMINI_API_KEY && process.env.GEMINI_PRIVATE_DATA_ALLOWED === 'true',
     ),
@@ -14,7 +20,7 @@ export function integrationStatus() {
       (process.env.VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY) ||
       (process.env.FIREBASE_PROJECT_ID && process.env.FIREBASE_VAPID_KEY),
     ),
-    email: Boolean(process.env.RESEND_API_KEY && process.env.EMAIL_FROM),
+    email: emailConfigured(),
     storage: Boolean(process.env.GCS_BUCKET || process.env.STORAGE_PROVIDER === 'postgres'),
     maps: Boolean(process.env.GOOGLE_MAPS_API_KEY),
   };
@@ -31,16 +37,6 @@ export async function googleToken() {
   } catch {
     throw new ApiError(503, 'serviceUnavailable');
   }
-}
-export async function checkedFetch(url: string, init: RequestInit) {
-  let response: Response;
-  try {
-    response = await fetch(url, { ...init, signal: AbortSignal.timeout(20_000) });
-  } catch {
-    throw new ApiError(503, 'serviceUnavailable');
-  }
-  if (!response.ok) throw new ApiError(502, 'providerError');
-  return response;
 }
 export async function gemini<T>(prompt: string, schema: z.ZodType<T>): Promise<T> {
   if (!process.env.GEMINI_API_KEY) throw new ApiError(503, 'notConfigured');

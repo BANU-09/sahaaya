@@ -1,5 +1,43 @@
 import { test, expect } from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
+import { getText } from '../../src/lib/i18n';
+
+test('free calendar, Maps and companion shortcuts work without provider credentials', async ({
+  page,
+}) => {
+  const login = await page.request.post('/api/auth/demo', {
+    headers: { Origin: 'http://127.0.0.1:3100' },
+    data: { role: 'PATIENT' },
+  });
+  expect(login.status()).toBe(200);
+  await page.request.patch('/api/settings', {
+    headers: { Origin: 'http://127.0.0.1:3100' },
+    data: { language: 'en', easyMode: false },
+  });
+  await page.goto('/app/appointments');
+  const calendar = page.getByRole('link', { name: 'Download calendar event' }).first();
+  await expect(calendar).toBeVisible();
+  const download = await page.request.get((await calendar.getAttribute('href'))!);
+  expect(download.status()).toBe(200);
+  expect(await download.text()).toContain('BEGIN:VCALENDAR');
+  await page.goto('/app/emergency');
+  await expect(page.getByRole('link', { name: 'Find hospitals on Google Maps' })).toHaveAttribute(
+    'href',
+    'https://www.google.com/maps/search/?api=1&query=hospitals+near+me',
+  );
+  await page.goto('/app/assistant');
+  await page
+    .locator('.suggested-questions')
+    .getByRole('button', { name: getText('en', 'visitSummary'), exact: true })
+    .click();
+  await expect(page.locator('.chat-message.answer')).toContainText('Metformin');
+  await page.goto('/app/settings');
+  await expect(page.getByText('Encrypted private file storage')).toBeVisible();
+  await expect(page.getByText('Browser push notifications')).toBeVisible();
+  await expect(
+    page.getByRole('button', { name: getText('en', 'pushReminders'), exact: true }),
+  ).toBeDisabled();
+});
 test('demo shows a loading state instead of a false configuration error', async ({ page }) => {
   let release: () => void = () => {};
   const ready = new Promise<void>((resolve) => {

@@ -19,6 +19,10 @@ flowchart LR
 
 `src/app` contains routes/styles; `src/components` contains feature screens/accessible controls; `src/lib` holds validation, permissions, localization and schedule math. Business operations are in `src/server/services`, providers in `src/server/integrations`. `prisma/schema.prisma` and versioned SQL migrations are the database source of truth. `scripts/worker.ts` is independently deployable.
 
+The API dispatcher delegates account/profile settings, care tasks and observations, and emergency operations to `profile-settings.ts`, `care.ts` and `emergency.ts`. Each service retains authorization and validation close to its database operation. Provider HTTP timeout/error handling is shared in `integrations/http.ts`; email provider selection is isolated in `integrations/email.ts`.
+
+Mutation route validation rejects missing resource IDs before passing data to Prisma. This prevents absent identifiers from broadening item updates/deletes. Account preferences update atomically. Companion intent routing lives separately in `src/lib/companion-intent.ts`; language-independent shortcut IDs avoid relying on translated UI text to select an operation.
+
 A User owns at most one Patient and joins CareCircles through Membership and explicit Permission rows. Each request checks active, non-revoked membership and the required permission. Patient ownership is additionally required for invitations, permission changes, emergency links and summary approval. Doctor invitations require a verified Doctor row. Demo identities cannot access real patients.
 
 Medication has MedicationSchedule, ScheduledDose, immutable DoseEvent, Refill and optional Prescription → Document provenance. Drafts generate no doses. Approval and the worker create an eight-day rolling schedule. Confirmation uses a version guard and transaction; stock deducts only confirmed consumption. As-needed records require explicit verification and a replay-protection request ID. Active prescriptions cannot be silently edited; create a new reviewed draft and archive the superseded regimen.
@@ -31,39 +35,40 @@ Appointments preserve request/confirmed/completed/cancelled state; confirmation 
 
 All endpoints are under `/api`. JSON writes require application/json and Origin matching APP_URL. Errors return `{ "error": "localizedKey" }`: 400 input, 401 authentication, 403 permission/consent/origin, 404 missing, 409 conflict, 413 size, 415 media, 423 locked, 429 rate limit, 502 upstream rejection, 503 unavailable. APIs/files use no-store.
 
-| Endpoint                                           | Methods            | Purpose                                                        |
-| -------------------------------------------------- | ------------------ | -------------------------------------------------------------- |
-| `/health`, `/config`                               | GET                | DB/worker health; configured flags, no secrets                 |
-| `/auth/register`, `/auth/login`, `/auth/logout`    | POST               | Identity/session                                               |
-| `/auth/demo`, `/auth/lock`, `/auth/unlock`         | POST               | Demo; device-bound PIN lock                                    |
-| `/auth/recover`, `/auth/reset`                     | POST               | Email recovery, single-use token                               |
-| `/auth/google/start`, `/auth/google/callback`      | GET                | OAuth state/nonce/PKCE                                         |
-| `/onboarding`                                      | POST               | Consented self patient profile                                 |
-| `/me`, `/settings`                                 | GET                | Account, memberships, preferences, sessions                    |
-| `/settings`, `/sessions/:id`                       | PATCH, DELETE      | Preferences/PIN; revoke session                                |
-| `/invitations`                                     | POST               | Accept email-bound invitation                                  |
-| `/notifications`, `/notifications/:id`             | GET, PATCH         | Inbox/read acknowledgement                                     |
-| `/push`                                            | GET/POST/DELETE    | Public web config; device subscription                         |
-| `/patients/:p/dashboard`, `/analytics?days=7`      | GET                | Permission-filtered dashboard; 1–366-day/custom-date analytics |
-| `/patients/:p/medications`                         | POST               | Create draft                                                   |
-| `/patients/:p/medications/:id`                     | PATCH/DELETE       | Edit draft; archive                                            |
-| `/patients/:p/medications/:id/approve`             | POST               | `{verified:true}`                                              |
-| `/patients/:p/medications/:id/refill`              | POST               | `{quantity:30}`                                                |
-| `/patients/:p/medications/:id/prn`                 | POST               | UUID requestId, verified, optional witnessed/reason            |
-| `/patients/:p/doses/:id`                           | POST               | TAKEN/SNOOZED/NOT_TAKEN/HELP                                   |
-| `/patients/:p/appointments`, `/appointments/:id`   | POST, PATCH        | Create/update                                                  |
-| `/patients/:p/appointments/:id/calendar`           | POST               | Explicit calendar sync                                         |
-| `/patients/:p/invitations`, `/members/:id`         | POST, PATCH/DELETE | Owner consent/access                                           |
-| `/patients/:p/journal`, `/vitals`                  | POST               | Mood/symptoms, manual observations                             |
-| `/patients/:p/tasks`, `/tasks/:id`, `/alerts/:id`  | POST, PATCH, PATCH | Assign/complete; acknowledge/resolve                           |
-| `/patients/:p/documents`                           | GET/POST multipart | Paginated search; JPEG/PNG/PDF ≤3 MiB                          |
-| `/patients/:p/documents/:id`                       | GET                | Protected attachment download                                  |
-| `/patients/:p/scan`                                | POST               | documentId+consent or explicit demo sample                     |
-| `/patients/:p/companion`                           | POST               | question+optional useAI                                        |
-| `/patients/:p/summaries`, `/summaries/:id`         | POST, GET/PATCH    | Create, read, patient approval                                 |
-| `/patients/:p/profile`, `/audit`                   | GET/PATCH, GET     | Emergency profile, paginated audit                             |
-| `/patients/:p/emergency-share`, `/passport/:token` | POST/DELETE, GET   | One-hour revocable bearer link                                 |
-| `/demo/reset`, `/demo/simulate`                    | POST               | Labelled fictional scenarios                                   |
+| Endpoint                                           | Methods            | Purpose                                                            |
+| -------------------------------------------------- | ------------------ | ------------------------------------------------------------------ |
+| `/health`, `/config`                               | GET                | DB/worker health; configured flags, no secrets                     |
+| `/auth/register`, `/auth/login`, `/auth/logout`    | POST               | Identity/session                                                   |
+| `/auth/demo`, `/auth/lock`, `/auth/unlock`         | POST               | Demo; device-bound PIN lock                                        |
+| `/auth/recover`, `/auth/reset`                     | POST               | Email recovery, single-use token                                   |
+| `/auth/google/start`, `/auth/google/callback`      | GET                | OAuth state/nonce/PKCE                                             |
+| `/onboarding`                                      | POST               | Consented self patient profile                                     |
+| `/me`, `/settings`                                 | GET                | Account, memberships, preferences, sessions                        |
+| `/settings`, `/sessions/:id`                       | PATCH, DELETE      | Preferences/PIN; revoke session                                    |
+| `/invitations`                                     | POST               | Accept email-bound invitation                                      |
+| `/notifications`, `/notifications/:id`             | GET, PATCH         | Inbox/read acknowledgement                                         |
+| `/push`                                            | GET/POST/DELETE    | Public web config; device subscription                             |
+| `/patients/:p/dashboard`, `/analytics?days=7`      | GET                | Permission-filtered dashboard; 1–366-day/custom-date analytics     |
+| `/patients/:p/medications`                         | POST               | Create draft                                                       |
+| `/patients/:p/medications/:id`                     | PATCH/DELETE       | Edit draft; archive                                                |
+| `/patients/:p/medications/:id/approve`             | POST               | `{verified:true}`                                                  |
+| `/patients/:p/medications/:id/refill`              | POST               | `{quantity:30}`                                                    |
+| `/patients/:p/medications/:id/prn`                 | POST               | UUID requestId, verified, optional witnessed/reason                |
+| `/patients/:p/doses/:id`                           | POST               | TAKEN/SNOOZED/NOT_TAKEN/HELP                                       |
+| `/patients/:p/appointments`, `/appointments/:id`   | POST, PATCH        | Create/update                                                      |
+| `/patients/:p/appointments/:id/calendar`           | POST               | Explicit calendar sync                                             |
+| `/patients/:p/appointments/:id/calendar.ics`       | GET                | Authorized private calendar download; generic title and times only |
+| `/patients/:p/invitations`, `/members/:id`         | POST, PATCH/DELETE | Owner consent/access                                               |
+| `/patients/:p/journal`, `/vitals`                  | POST               | Mood/symptoms, manual observations                                 |
+| `/patients/:p/tasks`, `/tasks/:id`, `/alerts/:id`  | POST, PATCH, PATCH | Assign/complete; acknowledge/resolve                               |
+| `/patients/:p/documents`                           | GET/POST multipart | Paginated search; JPEG/PNG/PDF ≤3 MiB                              |
+| `/patients/:p/documents/:id`                       | GET                | Protected attachment download                                      |
+| `/patients/:p/scan`                                | POST               | documentId+consent or explicit demo sample                         |
+| `/patients/:p/companion`                           | POST               | question+optional useAI                                            |
+| `/patients/:p/summaries`, `/summaries/:id`         | POST, GET/PATCH    | Create, read, patient approval                                     |
+| `/patients/:p/profile`, `/audit`                   | GET/PATCH, GET     | Emergency profile, paginated audit                                 |
+| `/patients/:p/emergency-share`, `/passport/:token` | POST/DELETE, GET   | One-hour revocable bearer link                                     |
+| `/demo/reset`, `/demo/simulate`                    | POST               | Labelled fictional scenarios                                       |
 
 Payload schemas: `src/lib/validation.ts`; executable examples: `tests/e2e/api.spec.ts`.
 
@@ -78,6 +83,7 @@ Additional authenticated endpoints:
 | `/patients/:p/documents/:id/history`, `/extractions` | GET, POST/PATCH     | Metadata history, source-linked transcription and explicit verification                       |
 | `/patients/:p/companion-drafts/:id`                  | POST                | Create an expiring draft, then explicitly commit once                                         |
 | `/push/receipt`                                      | POST                | Authenticated notification recipient's device receipt                                         |
+| `/push/test`, `/push/test/:id`                       | POST, GET           | Personal-account self-test and owner-only acceptance/receipt status                           |
 | `/webhooks/resend`                                   | POST                | Bounded raw body, Svix signature verification, deduplication and ordered terminal states      |
 | `/internal/worker`                                   | POST                | Constant-time reminder-secret authentication; scheduler, dispatch and file cleanup            |
 

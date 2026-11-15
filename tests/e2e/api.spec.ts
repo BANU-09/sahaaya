@@ -257,6 +257,16 @@ test.describe.serial('real PostgreSQL API workflows', () => {
     expect(response.status()).toBe(200);
     const appointment = await response.json();
     expect(appointment.status).toBe('REQUESTED');
+    const calendarPath = `/api/patients/${patientId}/appointments/${appointment.id}/calendar.ics`;
+    const calendar = await patient.get(calendarPath);
+    expect(calendar.status()).toBe(200);
+    expect(calendar.headers()['content-type']).toContain('text/calendar');
+    expect(calendar.headers()['cache-control']).toContain('no-store');
+    const calendarText = await calendar.text();
+    expect(calendarText).toContain('STATUS:TENTATIVE');
+    expect(calendarText).not.toContain('Test doctor');
+    expect(calendarText).not.toContain('Test follow-up');
+    expect((await stranger.get(calendarPath)).status()).toBe(403);
     expect(
       (
         await family.patch(`/api/patients/${patientId}/appointments/${appointment.id}`, {

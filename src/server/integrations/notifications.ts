@@ -1,27 +1,7 @@
 import { checkedFetch, googleToken } from './google';
 import { ApiError } from '../errors';
 import { sendWebPush } from './web-push';
-export async function sendEmail(
-  to: string,
-  subject: string,
-  content: string,
-  idempotencyKey: string,
-) {
-  if (!process.env.RESEND_API_KEY || !process.env.EMAIL_FROM)
-    throw new ApiError(503, 'notConfigured');
-  const response = await checkedFetch('https://api.resend.com/emails', {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${process.env.RESEND_API_KEY}`,
-      'Content-Type': 'application/json',
-      'Idempotency-Key': idempotencyKey,
-    },
-    body: JSON.stringify({ from: process.env.EMAIL_FROM, to: [to], subject, text: content }),
-  });
-  const body = (await response.json()) as { id?: string };
-  if (!body.id) throw new ApiError(502, 'providerError');
-  return body.id;
-}
+export { sendEmail } from './email';
 export async function sendPush(
   deviceToken: string,
   title: string,
